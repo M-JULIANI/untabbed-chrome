@@ -10,12 +10,6 @@ import axios from 'axios'
 import TurndownService from 'turndown'
 
 const turndownService = new TurndownService();
-
-// let html_text = "<h1>Hello World</h1>";
-// let markdown_text = turndownService.turndown(html_text);
-
-// console.log(markdown_text); // Outputs: # Hello World
-
 const stubData = [
   {
     "id": "1",
@@ -176,8 +170,169 @@ const stubData = [
     "parentId": null,
     "category": "Writing",
     "hostName": "writersdigest.com"
+  },
+  {
+    "id": "21",
+    "url": "https://www.wikipedia.org/",
+    "title": "Wikipedia",
+    "parentId": null,
+    "category": "Education",
+    "hostName": "wikipedia.org"
+  },
+  {
+    "id": "22",
+    "url": "https://www.imdb.com/",
+    "title": "IMDb",
+    "parentId": null,
+    "category": "Entertainment",
+    "hostName": "imdb.com"
+  },
+  {
+    "id": "23",
+    "url": "https://www.stackoverflow.com/",
+    "title": "Stack Overflow",
+    "parentId": null,
+    "category": "Technology",
+    "hostName": "stackoverflow.com"
+  },
+  {
+    "id": "24",
+    "url": "https://www.ted.com/",
+    "title": "TED Talks",
+    "parentId": null,
+    "category": "Education",
+    "hostName": "ted.com"
+  },
+  {
+    "id": "25",
+    "url": "https://www.nytimes.com/",
+    "title": "The New York Times",
+    "parentId": null,
+    "category": "News",
+    "hostName": "nytimes.com"
+  },
+  {
+    "id": "26",
+    "url": "https://www.medium.com/",
+    "title": "Medium",
+    "parentId": null,
+    "category": "Writing",
+    "hostName": "medium.com"
+  },
+  {
+    "id": "27",
+    "url": "https://www.linkedin.com/",
+    "title": "LinkedIn",
+    "parentId": null,
+    "category": "Business",
+    "hostName": "linkedin.com"
+  },
+  {
+    "id": "28",
+    "url": "https://www.pinterest.com/",
+    "title": "Pinterest",
+    "parentId": null,
+    "category": "Lifestyle",
+    "hostName": "pinterest.com"
+  },
+  {
+    "id": "29",
+    "url": "https://www.netflix.com/",
+    "title": "Netflix",
+    "parentId": null,
+    "category": "Entertainment",
+    "hostName": "netflix.com"
+  },
+  {
+    "id": "30",
+    "url": "https://www.spotify.com/",
+    "title": "Spotify",
+    "parentId": null,
+    "category": "Music",
+    "hostName": "spotify.com"
+  },
+  {
+    "id": "31",
+    "url": "https://www.khanacademy.org/",
+    "title": "Khan Academy",
+    "parentId": null,
+    "category": "Education",
+    "hostName": "khanacademy.org"
+  },
+  {
+    "id": "32",
+    "url": "https://www.nationalgeographic.com/",
+    "title": "National Geographic",
+    "parentId": null,
+    "category": "Education",
+    "hostName": "nationalgeographic.com"
+  },
+  {
+    "id": "33",
+    "url": "https://www.coursera.org/",
+    "title": "Coursera",
+    "parentId": null,
+    "category": "Education",
+    "hostName": "coursera.org"
+  },
+  {
+    "id": "34",
+    "url": "https://www.nature.com/",
+    "title": "Nature",
+    "parentId": null,
+    "category": "Science",
+    "hostName": "nature.com"
+  },
+  {
+    "id": "35",
+    "url": "https://www.theguardian.com/",
+    "title": "The Guardian",
+    "parentId": null,
+    "category": "News",
+    "hostName": "theguardian.com"
+  },
+  {
+    "id": "36",
+    "url": "https://www.weather.com/",
+    "title": "The Weather Channel",
+    "parentId": null,
+    "category": "Weather",
+    "hostName": "weather.com"
+  },
+  {
+    "id": "37",
+    "url": "https://www.producthunt.com/",
+    "title": "Product Hunt",
+    "parentId": null,
+    "category": "Technology",
+    "hostName": "producthunt.com"
+  },
+  {
+    "id": "38",
+    "url": "https://www.theverge.com/",
+    "title": "The Verge",
+    "parentId": null,
+    "category": "Technology",
+    "hostName": "theverge.com"
+  },
+  {
+    "id": "39",
+    "url": "https://www.tripadvisor.com/",
+    "title": "TripAdvisor",
+    "parentId": null,
+    "category": "Travel",
+    "hostName": "tripadvisor.com"
+  },
+  {
+    "id": "40",
+    "url": "https://www.bloomberg.com/",
+    "title": "Bloomberg",
+    "parentId": null,
+    "category": "Finance",
+    "hostName": "bloomberg.com"
   }
-]
+];
+
 
 function App() {
   const [results, setResults] = useState();
@@ -216,13 +371,19 @@ function App() {
     // }
 
     const updated_url = `http://localhost:5000/api?url=${url}`
-    const response = await axios.get(updated_url);
+    let response = undefined
+
+    try {
+      response = await axios.get(updated_url);
+    } catch (error) {
+      console.warn(`website ${url} not accessible`);
+      return undefined;
+    }
 
     console.log('response:')
     console.log({ response })
-
     const text = turndownService.turndown(response.data);
-    console.log('xformed', {text})
+    console.log('xformed', { text })
     return text;
   }
 
@@ -237,7 +398,7 @@ function App() {
     //Check if the embedding is in the cache
     const cachedEmbedding = localStorage?.getItem(`untabbed-embedding-${url}`);
     if (cachedEmbedding) {
-        return JSON.parse(cachedEmbedding);
+      return JSON.parse(cachedEmbedding);
     }
 
     // If not in the cache, create the embedding
@@ -278,21 +439,90 @@ function App() {
     };
   }
 
-  async function runPipeline(stubData) {
+  function visualizeEmbeddings(embeddings, stubData) {
+    try {
+
+      const filteredIndeces = embeddings
+        .map((x, i) => x !== undefined ? i : undefined)
+        .filter(i => i !== undefined);
+
+
+      // const embeddingIdPair = filteredIndeces.map((x, i) => {
+      //   return { embedding: x, id: stubData[i].id }
+      // })
+
+      const nonNullEmbeddings = filteredIndeces.map(x => embeddings[x])
+     // const nonNullIds = embeddingIdPair.map(x => x.id)
+      const umap = new UMAP({nNeighbors: 3});
+      // console.log('this is causing the problem?')
+      // console.log(nonNullEmbeddings)
+      const positions = umap.fit(nonNullEmbeddings);
+      return { positions, ids: filteredIndeces };
+    }
+    catch (error) {
+      console.log('error in visualizeEmbeddings')
+      console.log(error)
+      return undefined
+    }
+  }
+  function remap(num, inputMin, inputMax, outputMin, outputMax) {
+    const epsilon = 0; // small constant to avoid division by zero
+    return ((num - inputMin) / (inputMax - inputMin + epsilon)) * (outputMax - outputMin) + outputMin;
+  }
+
+  function normalizePositions(positions, indeces) {
+
+    const inputMinX = positions.map(x=> x[0]).reduce((a, b) => Math.min(a, b))
+    const inputMaxX = positions.map(x=> x[0]).reduce((a, b) => Math.max(a, b))
+    const inputMinY = positions.map(x=> x[1]).reduce((a, b) => Math.min(a, b))
+    const inputMaxY = positions.map(x=> x[1]).reduce((a, b) => Math.max(a, b))
+
+    console.log({inputMaxX, inputMinX, inputMaxY, inputMinY})
+    const outputMinX = 100
+    const outputMaxX = window.innerWidth - 100
+    const outputMinY = 100
+    const outputMaxY = window.innerHeight - 100
+
+    const normalizedPositions = positions.map((x, i) => {
+      const newX = remap(x[0], inputMinX, inputMaxX, outputMinX, outputMaxX)
+      const newY = remap(x[1], inputMinY, inputMaxY, outputMinY, outputMaxY)
+      const index = indeces[i]
+      return { x: newX, y: newY, schema: stubData[index] }
+    })
+    return normalizedPositions;
+  }
+
+  async function runEmbeddingAndVisualization() {
+    const embeddings = await runEmbeddingPipeline(stubData)
+    const nonNulls = embeddings.filter(x => x !== undefined)
+    nonNulls.filter(x => x !== undefined).forEach(async (embedding, i) => {
+      storeEmbedding(stubData[i].url, embedding);
+    })
+
+    console.log('about to visualize embeddings')
+    const rawPositions = visualizeEmbeddings(embeddings, stubData)
+    console.log('raw positions')
+    console.log({rawPositions})
+    const normalized = normalizePositions(rawPositions.positions, rawPositions.ids)
+    console.log('normalized positions')
+    console.log({normalized})
+    return normalized
+  }
+  async function runEmbeddingPipeline(stubData) {
     if (stubData) {
       try {
-
-        const increment = 100
         const drawNodesPromises = await Promise.all(stubData.map(async (x, i) => {
           const url = x.url;
           console.log(`getting text from ${url}`)
           const text = await getWebsiteTextFromUrl(url);
+          if (text === undefined) {
+            return undefined
+          }
+
           console.log(`website text: \n\n ${text}`);
           const embedding = await createEmbedding(text);
           console.log(`embedding: \n\n ${embedding}`);
-          storeEmbedding(url, embedding);
-          const xPos = Math.random() * window.innerWidth;
-          return { x: xPos, y: i * increment, schema: { ...x } };
+          return embedding
         }))
         console.log('promises')
         console.log(drawNodesPromises)
@@ -352,19 +582,17 @@ function App() {
   // console.log({ stubData })
 
   useEffect(() => {
-    const resultsPipeline = runPipeline(stubData)
-    setResults(resultsPipeline);
-  }, [])
-
-  const draws = stubData.map((result, key) => {
-    const xPos = Math.max(100, Math.min(window.innerWidth - 100, Math.random() * window.innerWidth));
-    const yPos = Math.max(100, Math.min(window.innerHeight - 100, Math.random() * window.innerHeight));
-    return { x: xPos, y: yPos, schema: { ...result } };
-  });
+    const runAsync = async () => {
+      const pipelineResults = await runEmbeddingAndVisualization();
+      setResults(pipelineResults);
+    };
+  
+    runAsync();
+  }, []);
 
   return (
     <Stage width={dimensions.width} height={dimensions.height} options={{ background: 0x1099bb }}>
-      {draws && draws.map((result, key) => {
+      {results && results.map((result, key) => {
         return <WebNode key={result?.schema?.id || key} nodeInfo={result} radius={50} />
       })}
     </Stage>

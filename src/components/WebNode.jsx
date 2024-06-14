@@ -28,7 +28,7 @@ export const WebNode = ({ radius, nodeInfo }) => {
   console.log('logging...')
   const draw = useCallback((g) => {
     g.clear();
-    g.beginFill(colorMap[schema.category]); // Example color, change as needed
+    g.beginFill(colorMap[schema?.category] || 'white'); // Example color, change as needed
     g.drawCircle(x, y, radius);
     g.endFill();
  }, [x, y, radius]);
@@ -36,7 +36,7 @@ export const WebNode = ({ radius, nodeInfo }) => {
     return (
     <>
     <Graphics draw={draw}/>
-    <Text text={schema.title || "NADA"} x={x} y={y} anchor={0.5}
+    <Text text={schema?.title || "NADA"} x={x} y={y} anchor={0.5}
     // style={ new TextStyle({
     //       align: 'center',
     //       fontFamily: '"Source Sans Pro", Helvetica, sans-serif',

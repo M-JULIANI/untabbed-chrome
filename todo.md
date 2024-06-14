@@ -1,8 +1,8 @@
-- [ ] get pipeline working with stub data
-    - [ ] get text from url
-    - [ ] get embedding from text
-    - [ ] get 2d position from embedding
-    - [ ] draw all positions on the canvas
+- [x] get pipeline working with stub data
+    - [x] get text from url
+    - [x] get embedding from text
+    - [x] get 2d position from embedding
+    - [x] draw all positions on the canvas
 - [ ] get service-worker or content pages working
 - [ ] get the 'pipeline' to initialize when the extension in acrive
 - [ ] get 'listener' to listen for tab activity (open/closed) while extension active
