@@ -6,6 +6,10 @@
         {
           "js": ["src/listener.js"],
           "matches": ["<all_urls>"]
+        },
+        {
+            "js": ["src/website-embedder.js"],
+            "matches": ["<all_urls>"]
         }
       ],
     "action": {

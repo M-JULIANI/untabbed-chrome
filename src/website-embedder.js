@@ -1,14 +1,8 @@
-// chrome.action.onClicked.addListener(function () {
-//     chrome.tabs.create({
-//       url: chrome.runtime.getURL('../index.html')
-//     });
-//   });
-
- import * as use from '@tensorflow-models/universal-sentence-encoder';
- import { UMAP } from 'umap-js';
- import axios from 'axios'
-//  import jsdom from 'jsdom';
-// const {JSDOM}  = jsdom;
+// import * as use from '@tensorflow-models/universal-sentence-encoder';
+// import { UMAP } from 'umap-js';
+const use = require('@tensorflow-models/universal-sentence-encoder')
+const UMAP = require('umap-js');
+const axios = require('axios');
 async function getWebsiteText() {
     return document.body.innerText;
 }
@@ -16,9 +10,10 @@ async function getWebsiteText() {
 async function getWebsiteTextFromUrl(url) {
     const response = await axios.get(url);
     console.log('response:')
-    console.log({response})
+    console.log({ response })
     return response;
-}
+  }
+
 
 async function createEmbedding(text, url) {
     // Check if the embedding is in the cache
@@ -92,14 +87,3 @@ function visualizeEmbeddings(embeddings) {
     // Assuming you have an array of embeddings for visualization
     // visualizeEmbeddings(arrayOfEmbeddings);
 })();
-
-
-
-//   chrome.action.onClicked.addListener((tab) => {
-//     chrome.scripting.executeScript({
-//         target: { tabId: tab.id },
-//         files: ['website-embedder.js']
-//     });
-// });
-
-  
