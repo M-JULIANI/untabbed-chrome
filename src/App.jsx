@@ -9,6 +9,8 @@ import { UMAP } from 'umap-js';
 import axios from 'axios'
 import TurndownService from 'turndown'
 
+const SIDE_GUTTER = 150
+const DEFAULT_RADIUS = 50
 const turndownService = new TurndownService();
 const stubData = [
   {
@@ -350,18 +352,10 @@ function App() {
     }
 
     window.addEventListener('resize', handleResize);
-
     return () => {
       window.removeEventListener('resize', handleResize);
     };
   }, []);
-
-  console.log('rendering')
-
-  useEffect(() => {
-
-
-  }, [])
 
   async function getWebsiteTextFromUrl(url) {
 
@@ -439,6 +433,80 @@ function App() {
     };
   }
 
+  function fetchEmbeddings(urls) {
+    const dbName = "untabbedDB";
+    const storeName = "textStore";
+  
+    let request = indexedDB.open(dbName, 1);
+  
+    return new Promise((resolve, reject) => {
+      request.onsuccess = function (event) {
+        let db = event.target.result;
+        let transaction = db.transaction([storeName], "readonly");
+        let objectStore = transaction.objectStore(storeName);
+  
+        let promises = urls.map(url => {
+          return new Promise((resolve, reject) => {
+            let getRequest = objectStore.get(url);
+  
+            getRequest.onsuccess = function (event) {
+              if (event.target.result) {
+                resolve(event.target.result.embedding);
+              } else {
+                resolve(null);
+              }
+            };
+  
+            getRequest.onerror = function (event) {
+              reject("Database error: " + event.target.errorCode);
+            };
+          });
+        });
+  
+        Promise.all(promises)
+          .then(resolve)
+          .catch(reject);
+      };
+  
+      request.onerror = function (event) {
+        reject("Database error: " + event.target.errorCode);
+      };
+    });
+  }
+
+  function fetchAllEmbeddings() {
+    const dbName = "untabbedDB";
+    const storeName = "textStore";
+  
+    let request = indexedDB.open(dbName, 1);
+  
+    return new Promise((resolve, reject) => {
+      request.onsuccess = function (event) {
+        let db = event.target.result;
+        let transaction = db.transaction([storeName], "readonly");
+        let objectStore = transaction.objectStore(storeName);
+        let getAllRequest = objectStore.getAll();
+  
+        getAllRequest.onsuccess = function (event) {
+          if (event.target.result) {
+            let embeddings = event.target.result.map(record => record.embedding);
+            resolve(embeddings);
+          } else {
+            resolve([]);
+          }
+        };
+  
+        getAllRequest.onerror = function (event) {
+          reject("Database error: " + event.target.errorCode);
+        };
+      };
+  
+      request.onerror = function (event) {
+        reject("Database error: " + event.target.errorCode);
+      };
+    });
+  }
+
   function visualizeEmbeddings(embeddings, stubData) {
     try {
 
@@ -478,10 +546,10 @@ function App() {
     const inputMaxY = positions.map(x=> x[1]).reduce((a, b) => Math.max(a, b))
 
     console.log({inputMaxX, inputMinX, inputMaxY, inputMinY})
-    const outputMinX = 100
-    const outputMaxX = window.innerWidth - 100
-    const outputMinY = 100
-    const outputMaxY = window.innerHeight - 100
+    const outputMinX = SIDE_GUTTER
+    const outputMaxX = window.innerWidth - SIDE_GUTTER
+    const outputMinY = SIDE_GUTTER
+    const outputMaxY = window.innerHeight - SIDE_GUTTER
 
     const normalizedPositions = positions.map((x, i) => {
       const newX = remap(x[0], inputMinX, inputMaxX, outputMinX, outputMaxX)
@@ -492,13 +560,19 @@ function App() {
     return normalizedPositions;
   }
 
-  async function runEmbeddingAndVisualization() {
+  async function runEmbeddingAndStorage(stubData) {
     const embeddings = await runEmbeddingPipeline(stubData)
     const nonNulls = embeddings.filter(x => x !== undefined)
     nonNulls.filter(x => x !== undefined).forEach(async (embedding, i) => {
       storeEmbedding(stubData[i].url, embedding);
     })
+    return embeddings
+  }
 
+  async function fetchStubDatabaseEntries(){
+
+  }
+  async function calculatePositionsFromEmbeddings(embeddings, stubData){
     console.log('about to visualize embeddings')
     const rawPositions = visualizeEmbeddings(embeddings, stubData)
     console.log('raw positions')
@@ -507,6 +581,7 @@ function App() {
     console.log('normalized positions')
     console.log({normalized})
     return normalized
+    
   }
   async function runEmbeddingPipeline(stubData) {
     if (stubData) {
@@ -583,17 +658,19 @@ function App() {
 
   useEffect(() => {
     const runAsync = async () => {
-      const pipelineResults = await runEmbeddingAndVisualization();
-      setResults(pipelineResults);
+     // const embeddingResults = await fetchEmbeddings();
+      const embeddingResults = await fetchAllEmbeddings();
+      const normalizedPositions = await calculatePositionsFromEmbeddings(embeddingResults, stubData)
+      setResults(normalizedPositions);
     };
   
     runAsync();
-  }, []);
+  }, [dimensions.width, dimensions.height]);
 
   return (
     <Stage width={dimensions.width} height={dimensions.height} options={{ background: 0x1099bb }}>
       {results && results.map((result, key) => {
-        return <WebNode key={result?.schema?.id || key} nodeInfo={result} radius={50} />
+        return <WebNode key={result?.schema?.id || key} nodeInfo={result} radius={DEFAULT_RADIUS} />
       })}
     </Stage>
   );

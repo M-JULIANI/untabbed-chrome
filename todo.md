@@ -4,5 +4,5 @@
     - [x] get 2d position from embedding
     - [x] draw all positions on the canvas
 - [ ] get service-worker or content pages working
-- [ ] get the 'pipeline' to initialize when the extension in acrive
+- [ ] get the 'pipeline' to initialize when the extension in active
 - [ ] get 'listener' to listen for tab activity (open/closed) while extension active
