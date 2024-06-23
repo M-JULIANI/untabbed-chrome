@@ -704,19 +704,19 @@ function App() {
     const runAsync = async () => {
       // const embeddingResults = await fetchEmbeddings();
       setLoading(true)
-      console.log('pre running embedding pipeline')
-      const embeddingResults = await runEmbeddingPipeline(stubData)
-      console.log('ran embedding pipeline')
-      // const embeddingResults = await fetchAllEmbeddings();
-      if (embeddingResults) {
-        const normalizedPositions = await calculatePositionsFromEmbeddings(embeddingResults, stubData)
-        setResults(normalizedPositions);
-        fetchAllOpenTabs().then((tabs) => {
-          console.log('tabs are:')
-          console.log({ tabs })
-        })
-      }
-      setLoading(false)
+      // console.log('pre running embedding pipeline')
+      // const embeddingResults = await runEmbeddingPipeline(stubData)
+      // console.log('ran embedding pipeline')
+      // // const embeddingResults = await fetchAllEmbeddings();
+      // if (embeddingResults) {
+      //   const normalizedPositions = await calculatePositionsFromEmbeddings(embeddingResults, stubData)
+      //   setResults(normalizedPositions);
+      //   fetchAllOpenTabs().then((tabs) => {
+      //     console.log('tabs are:')
+      //     console.log({ tabs })
+      //   })
+      // }
+      // setLoading(false)
     };
 
     runAsync();

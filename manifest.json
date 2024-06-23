@@ -2,25 +2,23 @@
     "manifest_version": 3,
     "name": "Untabbed-Chrome",
     "version": "1.0.0",
-    "side_panel": {
-        "default_path": "index.html"
-    },
-    "action": {
-        "default_popup": "index.html"
-    },
     "permissions": [
-        "sidePanel",
         "storage",
         "activeTab",
         "scripting",
-        "tabs",
-        "https://*/"
+        "tabs"
     ],
+    "action": {
+        "default_title": "Untabbed"
+    },
+    "background": {
+        "service_worker": "src/service-worker.js"
+    },
     "host_permissions": [
         "http://*/*",
         "https://*/*"
     ],
-    "content_security_policy": {
-        "extension_pages": "script-src 'self'; object-src 'self'; connect-src *"
+    "chrome_url_overrides": {
+        "newtab": "index.html"
       }
 }
