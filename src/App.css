@@ -40,3 +40,23 @@
 button {
   font-size: calc(10px + 2vmin);
 }
+
+@keyframes loading {
+  0% { opacity: 0.2; }
+  50% { opacity: 1; }
+  100% { opacity: 0.2; }
+}
+
+.loading span {
+  animation-name: loading;
+  animation-duration: 1.2s;
+  animation-iteration-count: infinite;
+}
+
+.loading span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.loading span:nth-child(3) {
+  animation-delay: 0.4s;
+}

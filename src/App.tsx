@@ -10,6 +10,7 @@ import TurndownService from 'turndown'
 import Prando from 'prando'
 import { useCallback } from "react";
 import { TextStyle } from 'pixi.js'
+import '@pixi/unsafe-eval'
 // import { DrawNode } from "../draw";
 
 
@@ -67,7 +68,9 @@ const stubData = [
     "title": "HackerNews",
     "parentId": null,
     "category": "news",
-    "hostName": "ycombinator.com"
+    "hostName": "ycombinator.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "2",
@@ -75,7 +78,9 @@ const stubData = [
     "title": "Randomeower",
     "parentId": null,
     "category": "General",
-    "hostName": "randomeower.com"
+    "hostName": "randomeower.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "3",
@@ -83,7 +88,9 @@ const stubData = [
     "title": "Boredom Busted",
     "parentId": null,
     "category": "Entertainment",
-    "hostName": "boredombusted.com"
+    "hostName": "boredombusted.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "4",
@@ -91,7 +98,9 @@ const stubData = [
     "title": "ShuffleMe",
     "parentId": null,
     "category": "General",
-    "hostName": "shuffleme.se"
+    "hostName": "shuffleme.se",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "5",
@@ -99,7 +108,9 @@ const stubData = [
     "title": "Types of Malware & Malware Examples",
     "parentId": null,
     "category": "Technology",
-    "hostName": "kaspersky.com"
+    "hostName": "kaspersky.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "6",
@@ -107,7 +118,9 @@ const stubData = [
     "title": "Knowledge Lover",
     "parentId": null,
     "category": "Education",
-    "hostName": "knowledgelover.com"
+    "hostName": "knowledgelover.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "7",
@@ -115,7 +128,9 @@ const stubData = [
     "title": "Goodreads",
     "parentId": null,
     "category": "Books",
-    "hostName": "goodreads.com"
+    "hostName": "goodreads.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "8",
@@ -123,7 +138,9 @@ const stubData = [
     "title": "How Stuff Works",
     "parentId": null,
     "category": "Education",
-    "hostName": "howstuffworks.com"
+    "hostName": "howstuffworks.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "9",
@@ -131,7 +148,9 @@ const stubData = [
     "title": "Codecademy",
     "parentId": null,
     "category": "Education",
-    "hostName": "codecademy.com"
+    "hostName": "codecademy.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "10",
@@ -139,7 +158,9 @@ const stubData = [
     "title": "BBC Future",
     "parentId": null,
     "category": "News",
-    "hostName": "bbc.com"
+    "hostName": "bbc.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "11",
@@ -147,7 +168,9 @@ const stubData = [
     "title": "99U",
     "parentId": null,
     "category": "Creativity",
-    "hostName": "99u.com"
+    "hostName": "99u.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "12",
@@ -155,7 +178,9 @@ const stubData = [
     "title": "Fast Company",
     "parentId": null,
     "category": "Business",
-    "hostName": "fastcompany.com"
+    "hostName": "fastcompany.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "13",
@@ -163,7 +188,9 @@ const stubData = [
     "title": "eHow",
     "parentId": null,
     "category": "How To",
-    "hostName": "ehow.com"
+    "hostName": "ehow.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "14",
@@ -171,7 +198,9 @@ const stubData = [
     "title": "Power Searching With Google",
     "parentId": null,
     "category": "Education",
-    "hostName": "powersearchingwithgoogle.com"
+    "hostName": "powersearchingwithgoogle.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "15",
@@ -179,7 +208,9 @@ const stubData = [
     "title": "Make Use of",
     "parentId": null,
     "category": "Technology",
-    "hostName": "makeuseof.com"
+    "hostName": "makeuseof.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "16",
@@ -187,7 +218,9 @@ const stubData = [
     "title": "Quora",
     "parentId": null,
     "category": "Q&A",
-    "hostName": "quora.com"
+    "hostName": "quora.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "17",
@@ -195,7 +228,9 @@ const stubData = [
     "title": "Fact Slides",
     "parentId": null,
     "category": "Education",
-    "hostName": "factslides.com"
+    "hostName": "factslides.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "18",
@@ -203,7 +238,9 @@ const stubData = [
     "title": "Reddit",
     "parentId": null,
     "category": "Community",
-    "hostName": "reddit.com"
+    "hostName": "reddit.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "19",
@@ -211,7 +248,9 @@ const stubData = [
     "title": "Code.org",
     "parentId": null,
     "category": "Education",
-    "hostName": "code.org"
+    "hostName": "code.org",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "20",
@@ -219,7 +258,9 @@ const stubData = [
     "title": "Writer’s Digest",
     "parentId": null,
     "category": "Writing",
-    "hostName": "writersdigest.com"
+    "hostName": "writersdigest.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "21",
@@ -227,7 +268,9 @@ const stubData = [
     "title": "Wikipedia",
     "parentId": null,
     "category": "Education",
-    "hostName": "wikipedia.org"
+    "hostName": "wikipedia.org",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "22",
@@ -235,7 +278,9 @@ const stubData = [
     "title": "IMDb",
     "parentId": null,
     "category": "Entertainment",
-    "hostName": "imdb.com"
+    "hostName": "imdb.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "23",
@@ -243,7 +288,9 @@ const stubData = [
     "title": "Stack Overflow",
     "parentId": null,
     "category": "Technology",
-    "hostName": "stackoverflow.com"
+    "hostName": "stackoverflow.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "24",
@@ -251,7 +298,9 @@ const stubData = [
     "title": "TED Talks",
     "parentId": null,
     "category": "Education",
-    "hostName": "ted.com"
+    "hostName": "ted.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "25",
@@ -259,7 +308,9 @@ const stubData = [
     "title": "The New York Times",
     "parentId": null,
     "category": "News",
-    "hostName": "nytimes.com"
+    "hostName": "nytimes.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "26",
@@ -267,7 +318,9 @@ const stubData = [
     "title": "Medium",
     "parentId": null,
     "category": "Writing",
-    "hostName": "medium.com"
+    "hostName": "medium.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "27",
@@ -275,7 +328,9 @@ const stubData = [
     "title": "LinkedIn",
     "parentId": null,
     "category": "Business",
-    "hostName": "linkedin.com"
+    "hostName": "linkedin.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "28",
@@ -283,7 +338,9 @@ const stubData = [
     "title": "Pinterest",
     "parentId": null,
     "category": "Lifestyle",
-    "hostName": "pinterest.com"
+    "hostName": "pinterest.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "29",
@@ -291,7 +348,9 @@ const stubData = [
     "title": "Netflix",
     "parentId": null,
     "category": "Entertainment",
-    "hostName": "netflix.com"
+    "hostName": "netflix.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "30",
@@ -299,7 +358,9 @@ const stubData = [
     "title": "Spotify",
     "parentId": null,
     "category": "Music",
-    "hostName": "spotify.com"
+    "hostName": "spotify.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "31",
@@ -307,7 +368,9 @@ const stubData = [
     "title": "Khan Academy",
     "parentId": null,
     "category": "Education",
-    "hostName": "khanacademy.org"
+    "hostName": "khanacademy.org",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "32",
@@ -315,7 +378,9 @@ const stubData = [
     "title": "National Geographic",
     "parentId": null,
     "category": "Education",
-    "hostName": "nationalgeographic.com"
+    "hostName": "nationalgeographic.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "33",
@@ -323,7 +388,9 @@ const stubData = [
     "title": "Coursera",
     "parentId": null,
     "category": "Education",
-    "hostName": "coursera.org"
+    "hostName": "coursera.org",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "34",
@@ -331,7 +398,9 @@ const stubData = [
     "title": "Nature",
     "parentId": null,
     "category": "Science",
-    "hostName": "nature.com"
+    "hostName": "nature.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "35",
@@ -339,7 +408,9 @@ const stubData = [
     "title": "The Guardian",
     "parentId": null,
     "category": "News",
-    "hostName": "theguardian.com"
+    "hostName": "theguardian.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "36",
@@ -347,7 +418,9 @@ const stubData = [
     "title": "The Weather Channel",
     "parentId": null,
     "category": "Weather",
-    "hostName": "weather.com"
+    "hostName": "weather.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "37",
@@ -355,7 +428,9 @@ const stubData = [
     "title": "Product Hunt",
     "parentId": null,
     "category": "Technology",
-    "hostName": "producthunt.com"
+    "hostName": "producthunt.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "38",
@@ -363,7 +438,9 @@ const stubData = [
     "title": "The Verge",
     "parentId": null,
     "category": "Technology",
-    "hostName": "theverge.com"
+    "hostName": "theverge.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "39",
@@ -371,7 +448,9 @@ const stubData = [
     "title": "TripAdvisor",
     "parentId": null,
     "category": "Travel",
-    "hostName": "tripadvisor.com"
+    "hostName": "tripadvisor.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   },
   {
     "id": "40",
@@ -379,9 +458,39 @@ const stubData = [
     "title": "Bloomberg",
     "parentId": null,
     "category": "Finance",
-    "hostName": "bloomberg.com"
+    "hostName": "bloomberg.com",
+    "favIconUrl": "",
+    "lastAccessed": 0
   }
 ];
+
+async function loadTabs() {
+  const tabs: any[] = [];
+  const windowList = await new Promise<any[]>((resolve) => {
+    chrome.windows.getAll({ populate: true }, function (windows) {
+      resolve(windows);
+    });
+  });
+
+  windowList.forEach(window => {
+    window.current = false;
+    window.focused = false;
+    window.tabs.forEach((tab: any) => {
+      tabs.push(tab);
+    });
+  });
+
+  return tabs;
+}
+
+
+type TabData = {
+  url: string;
+  favIconUrl: string;
+  title: string;
+  lastAccessed: number;
+  text: string;
+}
 
 
 function App() {
@@ -393,6 +502,49 @@ function App() {
   const [loading, setLoading] = useState(false);
 
   const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    // Example of importing a worker in your application
+    const tfWorker = new Worker(new URL('tf-worker.js', import.meta.url), { type: 'module' });
+
+    async function fetchDataAndPostMessage() {
+      setLoading(true)
+      const tabs = await loadTabs();
+      if (tabs.length<1) {
+        console.log('No tabs loaded.');
+      } else {
+        const simplifiedTabs = tabs.map((tab, index) => {
+          return {
+            id: tab.id,
+            title: tab.title,
+            url: tab.url,
+            favIconUrl: tab.favIconUrl,
+            lastAccessed: tab.lastAccessed,
+            text: ''
+          };
+        });
+      
+        console.log('Sending tabs w/ text:', simplifiedTabs);
+        tfWorker.postMessage({
+          operation: 'processTabs',
+          data: simplifiedTabs
+        });
+      }
+    }
+
+    tfWorker.onmessage = function (e) {
+      const { result } = e.data;
+      console.log('Result from TensorFlow.js computation:', result);
+      setLoading(false)
+      // Handle the result
+    };
+
+    console.log('loading tabs from APP')
+    fetchDataAndPostMessage();
+
+    return () => tfWorker.terminate(); // Clean up
+  }, []);
+
 
   useEffect(() => {
     setIsMounted(true);
@@ -425,81 +577,18 @@ function App() {
 
     try {
       response = await axios.get(updated_url);
-    } catch (error) {
+      // console.log('response:')
+      // console.log({ response })
+      const text = turndownService.turndown(response.data);
+      console.log('xformed', { text })
+      return text;
+    }
+    catch (error) {
+      console.log(error)
       console.warn(`website ${url} not accessible`);
       return undefined;
     }
-
-    console.log('response:')
-    console.log({ response })
-    const text = turndownService.turndown(response.data);
-    console.log('xformed', { text })
-    return text;
   }
-
-  async function createEmbedding(text: string, url: string) {
-    try {
-      await tf.setBackend('webgl');
-    } catch (err) {
-      console.log('WebGL not supported, falling back to CPU backend');
-      await tf.setBackend('cpu');
-    }
-
-    //Check if the embedding is in the cache
-    const cachedEmbedding = localStorage?.getItem(`untabbed-embedding-${url}`);
-    if (cachedEmbedding) {
-      return JSON.parse(cachedEmbedding);
-    }
-
-    // If not in the cache, create the embedding
-    const model = await use.load();
-    const embeddings = await model.embed([text]);
-    const embeddingArray = embeddings.arraySync()[0];
-
-    // Store the embedding in the cache
-    localStorage?.setItem(`untabbed-embedding-${url}`, JSON.stringify(embeddingArray));
-    return embeddingArray;
-  }
-
-  function storeEmbedding(url: string, embedding: number[]) {
-    const dbName = "untabbedDB";
-    const storeName = "textStore";
-
-    let request = indexedDB.open(dbName, 1);
-
-    // request.onupgradeneeded = function (event) {
-    //   let db = (event.target as IDBOpenDBRequest)?.result;
-    //   if (!db) return
-    //   let objectStore = db.createObjectStore(storeName, { keyPath: "url" });
-    //   objectStore.createIndex("embedding", "embedding", { unique: false });
-    // };
-
-    request.onupgradeneeded = function (event) {
-      let db = (event.target as IDBOpenDBRequest)?.result;
-      if (!db) return;
-      if (!db.objectStoreNames.contains(storeName)) {
-        db.createObjectStore(storeName);
-      }
-    };
-
-    request.onsuccess = function (event) {
-      let db = (event.target as IDBOpenDBRequest)?.result;
-      if (!db) return
-      let transaction = db.transaction([storeName], "readwrite");
-      let objectStore = transaction.objectStore(storeName);
-      let request = objectStore.add({ url: url, embedding: embedding });
-
-      request.onsuccess = function (event) {
-        console.log("Embedding stored successfully!");
-      };
-    };
-
-    request.onerror = function (event) {
-      let ev = (event.target as IDBOpenDBRequest);
-      console.error("Database error: " + ev);
-    };
-  }
-
 
   function fetchAllEmbeddings(): Promise<number[][]> {
     const dbName = "untabbedDB";
@@ -535,19 +624,6 @@ function App() {
       };
     });
   }
-
-  function fetchAllOpenTabs() {
-    return new Promise((resolve, reject) => {
-      chrome.tabs.query({}, function (tabs) {
-        if (chrome.runtime.lastError) {
-          reject(chrome.runtime.lastError.message);
-        } else {
-          resolve(tabs);
-        }
-      });
-    });
-  }
-
 
   async function visualizeEmbeddings(embeddings: number[][], stubData: any) {
     const prng = new Prando(42);
@@ -604,16 +680,6 @@ function App() {
     return normalizedPositions;
   }
 
-  async function runEmbeddingAndStorage(stubData: any) {
-    const embeddings = await runEmbeddingPipeline(stubData)
-    if (embeddings !== undefined) {
-      const nonNulls = embeddings.filter(x => x !== undefined)
-      nonNulls.filter(x => x !== undefined).forEach(async (embedding, i) => {
-        storeEmbedding(stubData[i].url, embedding);
-      })
-      return embeddings
-    }
-  }
   async function calculatePositionsFromEmbeddings(embeddings: number[][], stubData: any) {
     console.log('about to visualize embeddings')
     const rawPositions = await visualizeEmbeddings(embeddings, stubData)
@@ -627,100 +693,28 @@ function App() {
     }
     return undefined
   }
-  async function runEmbeddingPipeline(stubData: any): Promise<number[][] | undefined> {
-    if (stubData) {
-      try {
-        const drawNodesPromises = await Promise.all(stubData.map(async (x: any, i: number) => {
-          const url = x.url;
-          console.log(`getting text from ${url}`)
-          const text = await getWebsiteTextFromUrl(url);
-          if (text === undefined) {
-            return undefined
-          }
-
-          console.log(`website text: \n\n ${text}`);
-          const embedding = await createEmbedding(text, url);
-          console.log(`embedding: \n\n ${embedding}`);
-          return embedding
-        }))
-        console.log('promises')
-        console.log(drawNodesPromises)
-
-        // const r = await Promise.all(drawNodesPromises); // Wait for all promises to resolve
-        // console.log({ r })
-        return drawNodesPromises
-      } catch (error) {
-        console.error('An error occurred:', error);
-        return undefined;
-      }
-    }
-    return undefined
-  }
-
-
-  // chrome?.storage?.onChanged.addListener((update) => {
-  //   chrome?.storage?.sync.get(['mapKey'], async(result) => {
-  //     if (chrome.runtime.lastError) {
-  //       // Handle the error, e.g., log it or show a message to the user
-  //       console.log('error message')
-  //       console.error(chrome.runtime.lastError.message);
-  //     } else {
-  //       const r = result['mapKey'] || [];
-  //       console.log('initial results: ', { r })
-  //       if (r) {
-  //         const sortedResults = r.sort((a, b) => (a?.timeEnter || '').localeCompare((b?.timeEnter || '')))
-
-  //         console.log({ sortedResults })
-
-  //         const increment = window.innerHeight / sortedResults.length;
-  //         const drawNodesPromises = sortedResults.map(async (x, i) => {
-  //           const url = x.url;
-  //           console.log(`getting text from ${url}`)
-  //           const text = await getWebsiteTextFromUrl(url);
-  //           console.log(`website text: \n\n ${text}`);
-  //           const embedding = await createEmbedding(text);
-  //           console.log(`embedding: \n\n ${embedding}`);
-  //           storeEmbedding(url, embedding);
-  //           const xPos = Math.random() * window.innerWidth;
-  //           return { x: xPos, y: i * increment, schema: { ...x } };
-  //         })
-  //         console.log('promises')
-  //         console.log(drawNodesPromises)
-
-  //         const drawNodes = await Promise.all(drawNodesPromises); // Wait for all promises to resolve
-
-  //         console.log({ drawNodes })
-
-  //         setResults(drawNodes);
-  //       }
-  //     }
-  //   })
-  // })
-
-  // console.log({ results })
-  // console.log({ stubData })
 
   useEffect(() => {
     const runAsync = async () => {
-      // const embeddingResults = await fetchEmbeddings();
+
       setLoading(true)
-      // console.log('pre running embedding pipeline')
+      console.log('pre running embedding pipeline')
+      // const embeddingResults = await fetchAllEmbeddings();
+      // console.log('embedding resultss!!')
       // const embeddingResults = await runEmbeddingPipeline(stubData)
       // console.log('ran embedding pipeline')
-      // // const embeddingResults = await fetchAllEmbeddings();
+      // const embeddingResults = await fetchAllEmbeddings();
       // if (embeddingResults) {
       //   const normalizedPositions = await calculatePositionsFromEmbeddings(embeddingResults, stubData)
       //   setResults(normalizedPositions);
-      //   fetchAllOpenTabs().then((tabs) => {
-      //     console.log('tabs are:')
-      //     console.log({ tabs })
-      //   })
       // }
       // setLoading(false)
+
     };
 
     runAsync();
   }, [dimensions.width, dimensions.height]);
+
 
   if (!isMounted) {
     return null;
@@ -735,58 +729,16 @@ function App() {
           alignItems: 'center',
           height: '100vh',
           fontSize: '24px'
-        }}>
-          Loading...
-        </div>
+        }} className="loading">Loading<span>.</span><span>.</span><span>.</span></div>
       ) : (
         <Stage width={dimensions.width} height={dimensions.height} options={{ background: 0x1099bb }}>
-          {results && results.map((result: any, key: number) => {
+          {/* {results && results.map((result: any, key: number) => {
             return <WebNode key={result?.schema?.id || key} nodeInfo={result} radius={DEFAULT_RADIUS} colorMap={colorMap} />
-          })}
+          })} */}
         </Stage>
       )}
     </>
   );
-
 }
-// function App() {
-//   const [count, setCount] = useState(0)
-
-//   return (
-//     <div className="App">
-//       <header className="App-header">
-//         <img src={logo} className="App-logo" alt="logo" />
-//         <p>Hello Vite + React!</p>
-//         <p>
-//           <button type="button" onClick={() => setCount((count) => count + 1)}>
-//             count is: {count}
-//           </button>
-//         </p>
-//         <p>
-//           Edit <code>App.jsx</code> and save to test HMR updates.
-//         </p>
-//         <p>
-//           <a
-//             className="App-link"
-//             href="https://reactjs.org"
-//             target="_blank"
-//             rel="noopener noreferrer"
-//           >
-//             Learn React
-//           </a>
-//           {' | '}
-//           <a
-//             className="App-link"
-//             href="https://vitejs.dev/guide/features.html"
-//             target="_blank"
-//             rel="noopener noreferrer"
-//           >
-//             Vite Docs
-//           </a>
-//         </p>
-//       </header>
-//     </div>
-//   )
-// }
 
 export default App

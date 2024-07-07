@@ -6,7 +6,9 @@
         "storage",
         "activeTab",
         "scripting",
-        "tabs"
+        "tabs",
+        "https://cdn.jsdelivr.net/npm/@tensorflow/*",
+        "https://cdn.jsdelivr.net/npm/@tensorflow-models/universal-sentence-encoder/*"
     ],
     "action": {
         "default_title": "Untabbed"
@@ -16,11 +18,10 @@
     },
     "host_permissions": [
         "http://*/*",
-        "https://*/*",
-        "https://tfhub.dev/*"
+        "https://*/*"
     ],
     "content_security_policy": {
-        "extension_pages": "script-src 'self' 'wasm-unsafe-eval' http://localhost:* http://127.0.0.1:*; object-src 'self';"
+        "extension_pages": "script-src 'self' http://localhost:5000; object-src 'self';"
     },
     "chrome_url_overrides": {
         "newtab": "index.html"
