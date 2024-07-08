@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Loading Animation</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f5f5f5;
+            margin: 0;
+        }
+        .node {
+            fill: #3498db;
+        }
+
+        .path1 {
+            animation: move1 5s linear infinite alternate;
+        }
+
+        .path2 {
+            animation: move2 4.5s linear infinite alternate;
+        }
+
+        .path3 {
+            animation: move3 4s linear infinite alternate;
+        }
+
+        .path4 {
+            animation: move4 5.5s linear infinite alternate;
+        }
+
+        .path5 {
+            animation: move5 6s linear infinite alternate;
+        }
+
+        @keyframes move1 {
+            from { offset-distance: 0%; }
+            to { offset-distance: 100%; }
+        }
+
+        @keyframes move2 {
+            from { offset-distance: 0%; }
+            to { offset-distance: 100%; }
+        }
+
+        @keyframes move3 {
+            from { offset-distance: 0%; }
+            to { offset-distance: 100%; }
+        }
+
+        @keyframes move4 {
+            from { offset-distance: 0%; }
+            to { offset-distance: 100%; }
+        }
+
+        @keyframes move5 {
+            from { offset-distance: 0%; }
+            to { offset-distance: 100%; }
+        }
+
+        line {
+            stroke: #3498db;
+            stroke-width: 2;
+        }
+
+        svg {
+            overflow: visible;
+        }
+    </style>
+</head>
+<body>
+    <svg width="400" height="200">
+        <line x1="10" y1="25" x2="200" y2="75" />
+        <line x1="200" y1="75" x2="350" y2="25" />
+        <line x1="10" y1="25" x2="350" y2="25" />
+        <line x1="10" y1="25" x2="200" y2="150" />
+        <line x1="200" y1="150" x2="350" y2="25" />
+
+        <circle class="node path1" cx="10" cy="25" r="5">
+            <animateMotion dur="5s" repeatCount="indefinite">
+                <mpath href="#path1" />
+            </animateMotion>
+        </circle>
+        <circle class="node path2" cx="10" cy="25" r="5">
+            <animateMotion dur="4.5s" repeatCount="indefinite">
+                <mpath href="#path2" />
+            </animateMotion>
+        </circle>
+        <circle class="node path3" cx="10" cy="25" r="5">
+            <animateMotion dur="4s" repeatCount="indefinite">
+                <mpath href="#path3" />
+            </animateMotion>
+        </circle>
+        <circle class="node path4" cx="10" cy="25" r="5">
+            <animateMotion dur="5.5s" repeatCount="indefinite">
+                <mpath href="#path4" />
+            </animateMotion>
+        </circle>
+        <circle class="node path5" cx="10" cy="25" r="5">
+            <animateMotion dur="6s" repeatCount="indefinite">
+                <mpath href="#path5" />
+            </animateMotion>
+        </circle>
+
+        <path id="path1" d="M10,25 Q100,0 200,75 T350,25" fill="none" />
+        <path id="path2" d="M10,25 Q100,50 200,150 T350,25" fill="none" />
+        <path id="path3" d="M10,25 Q50,75 200,75 T350,25" fill="none" />
+        <path id="path4" d="M10,25 Q150,0 200,75 T350,25" fill="none" />
+        <path id="path5" d="M10,25 Q100,100 200,150 T350,25" fill="none" />
+    </svg>
+</body>
+</html>

@@ -4,6 +4,9 @@ import * as use from '@tensorflow-models/universal-sentence-encoder';
 // require('@tensorflow/tfjs');
 // const use = require('@tensorflow-models/universal-sentence-encoder');
 
+const indexdb_name = "untabbedDB";
+const indexdb_store = "textStore";
+
 self.window = self;
 
 let tf_model = undefined;
@@ -57,17 +60,13 @@ class TabHandler {
 }
 
 async function fetchAllRecords() {
-    const dbName = "untabbedDB";
-    const storeName = "textStore";
-
-    let request = indexedDB.open(dbName, 1);
+    let request = indexedDB.open(indexdb_name, 1);
     return new Promise((resolve, reject) => {
         request.onsuccess = function (event) {
             let db = event.target.result;
-            console.log('fetchallrecords - onsuccess, db: ' + db)
             try {
-                let transaction = db.transaction([storeName], "readonly");
-                let objectStore = transaction.objectStore(storeName);
+                let transaction = db.transaction([indexdb_store], "readonly");
+                let objectStore = transaction.objectStore(indexdb_store);
                 let getAllRequest = objectStore.getAll();
 
                 getAllRequest.onsuccess = function (event) {
@@ -98,16 +97,13 @@ async function fetchAllRecords() {
 
 function storeEmbedding(url, embedding, id, title, lastAccessed) {
     console.log('attempting to store embedding...')
-    const dbName = "untabbedDB";
-    const storeName = "textStore";
-
-    let request = indexedDB.open(dbName, 1);
+    let request = indexedDB.open(indexdb_name, 1);
 
     request.onupgradeneeded = function (event) {
         try {
             let db = event.target.result;
-            if (!db.objectStoreNames.contains(storeName)) {
-                createObjectStore(db, storeName)
+            if (!db.objectStoreNames.contains(indexdb_store)) {
+                makeObjectStore(db, indexdb_store)
             }
         } catch (error) {
             console.error("Upgrade needed error: ", error);
@@ -119,8 +115,8 @@ function storeEmbedding(url, embedding, id, title, lastAccessed) {
             let db = event.target.result;
             console.log('onsuccess, db: ' + db)
             if (!db) return
-            let transaction = db.transaction([storeName], "readwrite");
-            let objectStore = transaction.objectStore(storeName);
+            let transaction = db.transaction([indexdb_store], "readwrite");
+            let objectStore = transaction.objectStore(indexdb_store);
             let request = objectStore.add({ url, id, title, embedding, lastAccessed });
 
             request.onsuccess = function (event) {
@@ -139,16 +135,6 @@ function storeEmbedding(url, embedding, id, title, lastAccessed) {
         let ev = (event.target);
         console.error("Database error: " + ev.errorCode);
     };
-}
-
-// Define a function to sanitize the text
-function sanitizeText(text) {
-    // Define a regex pattern for characters you want to allow
-    // Example: allows only alphanumeric characters and spaces
-    const allowedCharactersPattern = /[^a-zA-Z0-9 ]/g;
-
-    // Replace characters not matching the pattern with an empty string
-    return text.replace(allowedCharactersPattern, '');
 }
 
 async function createEmbedding(text) {
@@ -216,13 +202,13 @@ async function runEmbeddingPipeline(data) {
     return undefined
 }
 
-function checkIndexes(db, storeName) {
+function checkIndexes(db, indexdb_store) {
     try {
-        const transaction = db.transaction(storeName, 'readonly');
-        const objectStore = transaction.objectStore(storeName);
+        const transaction = db.transaction(indexdb_store, 'readonly');
+        const objectStore = transaction.objectStore(indexdb_store);
         const indexNames = objectStore.indexNames;
 
-        console.log(`Indexes in ${storeName}:`);
+        console.log(`Indexes in ${indexdb_store}:`);
         for (let i = 0; i < indexNames.length; i++) {
             console.log(indexNames[i]);
         }
@@ -232,28 +218,34 @@ function checkIndexes(db, storeName) {
 
     }
 }
-function createObjectStore(db, storeName) {
-    const objectStore = db.createObjectStore(storeName, { keyPath: 'id' });
-    objectStore.createIndex("embedding", "embedding", { unique: false });
-    objectStore.createIndex("url", "url", { unique: false });
-    objectStore.createIndex("title", "title", { unique: false });
-    objectStore.createIndex("lastAccessed", "lastAccessed", { unique: false });
-    console.log(`${storeName} object store created.`);
+// Modified version to handle promises
+function makeObjectStore(db, dbStore) {
+    return new Promise((resolve, reject) => {
+        const objectStore = db.createObjectStore(dbStore, { keyPath: 'id' });
+        try {
+            objectStore.createIndex("embedding", "embedding", { unique: false });
+            objectStore.createIndex("url", "url", { unique: false });
+            objectStore.createIndex("title", "title", { unique: false });
+            objectStore.createIndex("lastAccessed", "lastAccessed", { unique: false });
+            resolve(objectStore);
+        } catch (error) {
+            console.log('error creating object store with creator method');
+            console.log(error);
+            reject(error);
+        }
+    });
 }
 async function initializeDatabase() {
-    const dbName = "untabbedDB";
-    const storeName = "textStore";
-
     try {
         const db = await new Promise((resolve, reject) => {
-            const request = indexedDB.open(dbName, 1);
+            const request = indexedDB.open(indexdb_name, 1);
 
             console.log('attempting to open DB__----____-');
 
-            request.onupgradeneeded = function (event) {
+            request.onupgradeneeded = function (event) { // Make this handler async
                 const db = event.target.result;
-                if (!db.objectStoreNames.contains(storeName)) {
-                    createObjectStore(db, storeName);
+                if (!db.objectStoreNames.contains(indexdb_store)) {
+                    makeObjectStore(db, indexdb_store); // Await the creation
                 }
             };
 
@@ -266,11 +258,16 @@ async function initializeDatabase() {
             };
         });
 
-        const transaction = db.transaction('textStore', 'readonly');
+            // Ensure the object store exists before proceeding
+            if (!db.objectStoreNames.contains(indexdb_store)) {
+                throw new Error("Object store does not existttttttt");
+            }
+
+        const transaction = db.transaction(indexdb_store, 'readonly');
         await new Promise((resolve, reject) => {
             transaction.oncomplete = function () {
                 // Now it's safe to check indexes
-                checkIndexes(db, 'textStore');
+                checkIndexes(db, indexdb_store);
                 resolve();
             };
             transaction.onerror = function (event) {
@@ -278,14 +275,13 @@ async function initializeDatabase() {
             };
         });
 
-        console.log(`${dbName} database opened successfully.`);
+        console.log(`${indexdb_name} database opened successfully.`);
     } catch (error) {
         console.error(error);
     }
 }
 
 
-let tabHandler = null;
 self.onmessage = async (e) => {
     console.log('Worker: Message received from main script');
     const operation = e.data.operation;
@@ -296,7 +292,7 @@ self.onmessage = async (e) => {
             console.log('EEEENTERING>>>>>')
             console.log('seeding the db...')
             await initializeDatabase();
-            tabHandler = new TabHandler();
+            const tabHandler = new TabHandler();
             console.log('tabs to process... ' + tabs.length)
             await tabHandler.processTabs(tabs);
             console.log('TensorFlow.js version:', tf.version.tfjs); e
@@ -307,47 +303,3 @@ self.onmessage = async (e) => {
         console.log(error)
     }
 };
-
-// self.onmessage = async (event) => {
-//     const { data } = event.data;
-//     console.log('Worker: Message received from main script');
-//     console.log(event) 
-//     // Process windowList here
-//     // Post results back if necessary
-//     self.postMessage({ result: 'Processed Data' });
-// };
-
-
-// import * as tf from '@tensorflow/tfjs';
-// import * as use from '@tensorflow-models/universal-sentence-encoder';
-
-// self.window = self;
-
-// async function createEmbedding(text) {
-//     try {
-//         await tf.setBackend('webgl');
-//     } catch (err) {
-//         console.log('WebGL not supported, falling back to CPU backend');
-//         await tf.setBackend('cpu');
-//     }
-
-//     try {
-//         const tf_model = await use.load();
-//         console.log('tf_model loaded...');
-//         const embeddings = await tf_model.embed([text]);
-//         const embeddingArray = embeddings.arraySync()[0];
-//         console.log('embedding array: ' + embeddingArray.length)
-//         console.log(embeddingArray)
-//         return embeddingArray;
-//     } catch (error) {
-//         console.error('Error loading tf_model or generating embeddings:', error);
-//         throw error; // Rethrow or handle as needed
-//     }
-// }
-
-// // Example usage within the worker
-// createEmbedding("Hello, world!").then(embedding => {
-//     self.postMessage({embedding});
-// }).catch(error => {
-//     self.postMessage({error: error.message});
-// });
