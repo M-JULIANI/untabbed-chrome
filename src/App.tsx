@@ -1,3 +1,4 @@
+import './globals.css'
 import './App.css'
 import { useState, useEffect } from 'react'
 import { Stage, Container, Sprite, Text, Graphics } from '@pixi/react';
@@ -6,8 +7,9 @@ import axios from 'axios'
 import TurndownService from 'turndown'
 import Prando from 'prando'
 import { useCallback } from "react";
-import { TextStyle } from 'pixi.js'
+import { TextStyle } from "pixi.js";
 import '@pixi/unsafe-eval'
+import { SliderDemo } from './SliderDemo'
 
 const indexdb_name = "untabbedDB";
 const indexdb_store = "textStore";
@@ -26,6 +28,7 @@ const colorMap = {
   "Writing": "#D1B3E6"
 };
 
+
 const WebNode = ({ radius, nodeInfo, colorMap }: { radius: number, nodeInfo: any, colorMap?: any }) => {
   const { x, y, schema } = nodeInfo;
   console.log('logging...')
@@ -36,17 +39,26 @@ const WebNode = ({ radius, nodeInfo, colorMap }: { radius: number, nodeInfo: any
     g.endFill();
   }, [x, y, radius]);
 
-  const style = new TextStyle({
-    align: 'center',
-    fontFamily: '"Source Sans Pro", Helvetica, sans-serif',
-    fontSize: 10,
-    fontWeight: '400',
-  });
-
+  // const tstyle = {
+  //   align: "center",
+  //   fontFamily: "monospace",
+  //   fontSize: 12,
+  //   fontWeight: "100",
+  //   fill: '#000000',
+  //   stroke: "#01d27e",
+  //   strokeThickness: 0.5,
+  //   letterSpacing: 1,
+  //   wordWrap: false,
+  //   wordWrapWidth: 440,
+  // };
   return (
     <>
       <Graphics draw={draw} />
-      <Text text={schema?.title || "NADA"} x={x} y={y} anchor={0.5} />
+      <Text text={schema?.title || "NADA"} x={x} y={y} anchor={0.5}
+      // style={
+      //         {...tstyle}
+      //       }
+      />
     </>
   );
 }
@@ -94,6 +106,10 @@ function App() {
   const [loading, setLoading] = useState(false);
 
   const [isMounted, setIsMounted] = useState(false);
+  const [stare, setStare] = useState(2); // Step 2
+  const [localRecords, setLocalRecords] = useState<any[]>([]);
+  const [neighborCount, setNeighborCount] = useState(5);
+  const [minDistance, setMinDistance] = useState(0.001);
 
   useEffect(() => {
     // Example of importing a worker in your application
@@ -102,7 +118,7 @@ function App() {
     async function fetchDataAndPostMessage() {
       setLoading(true)
       const tabs = await loadTabs();
-      if (tabs.length<1) {
+      if (tabs.length < 1) {
         console.log('No tabs loaded.');
       } else {
         const simplifiedTabs = tabs.map((tab, index) => {
@@ -115,7 +131,7 @@ function App() {
             text: ''
           };
         });
-      
+
         console.log('Sending tabs w/ text:', simplifiedTabs);
         tfWorker.postMessage({
           operation: 'processTabs',
@@ -219,7 +235,7 @@ function App() {
     const prng = new Prando(42);
     try {
       //@ts-ignore
-      const embeddings = records.map(x=>x.embedding)
+      const embeddings = records.map(x => x.embedding)
       const filteredIndeces = embeddings
         .map((x: any, i: number) => x !== undefined ? i : -1)
         .filter((i: any) => i !== undefined);
@@ -291,22 +307,42 @@ function App() {
       console.log('pre running embedding pipeline')
       const records = await fetchAllRecords();
       if (records) {
+        setLocalRecords(records)
         const normalizedPositions = await calculatePositionsFromEmbeddings(records)
         setResults(normalizedPositions);
       }
       setLoading(false)
     };
 
-    if(dataLoaded){
-    runAsync();
+    if (dataLoaded) {
+      runAsync();
     }
   }, [dataLoaded]);
 
+  useEffect(() => {
+    const runAsync = async () => {
+      setLoading(true)
+      const normalizedPositions = await calculatePositionsFromEmbeddings(localRecords)
+      setResults(normalizedPositions);
+      setLoading(false)
+    };
 
-  console.log({results})
+    if (localRecords)
+      runAsync();
+
+
+  }, [neighborCount, minDistance])
+
+
+  console.log({ results })
+
+  useEffect(() => {
+    console.log('slider value: ' + stare)
+  }, [stare])
   if (!isMounted) {
     return null;
   }
+
   return (
     <>
       {loading ? (
@@ -317,14 +353,26 @@ function App() {
           height: '100vh',
           fontSize: '72px'
         }} className="loading"><span>u</span><span>n</span><span>t</span><span>a</span><span>b</span>
-        <span>b</span><span>e</span><span>d</span>
+          <span>b</span><span>e</span><span>d</span>
         </div>
       ) : (
-        <Stage width={dimensions.width} height={dimensions.height} options={{ background: 0x1099bb }}>
-          {results && results.map((result: any, key: number) => {
-            return <WebNode key={result?.schema?.id || key} nodeInfo={result} radius={DEFAULT_RADIUS} />
-          })}
-        </Stage>
+        <>
+ 
+          <Stage width={dimensions.width} height={dimensions.height} options={{ background: 0x1099bb }}>
+            {results && results.map((result: any, key: number) => {
+              return <WebNode key={result?.schema?.id || key} nodeInfo={result} radius={DEFAULT_RADIUS} />
+            })}
+          </Stage>
+          <input
+            type="range"
+            min="2"
+            max="6"
+            value={stare}
+            onChange={(e) => setStare(Number(e.target.value))}
+          />
+                   <SliderDemo />
+
+        </>
       )}
     </>
   );
