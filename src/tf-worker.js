@@ -95,7 +95,7 @@ async function fetchAllRecords() {
     });
 }
 
-function storeEmbedding(url, embedding, id, title, lastAccessed) {
+function storeEmbedding(url, embedding, id, title, lastAccessed, favIconUrl) {
     console.log('attempting to store embedding...')
     let request = indexedDB.open(indexdb_name, 1);
 
@@ -117,7 +117,7 @@ function storeEmbedding(url, embedding, id, title, lastAccessed) {
             if (!db) return
             let transaction = db.transaction([indexdb_store], "readwrite");
             let objectStore = transaction.objectStore(indexdb_store);
-            let request = objectStore.add({ url, id, title, embedding, lastAccessed });
+            let request = objectStore.add({ url, id, title, embedding, lastAccessed, favIconUrl });
 
             request.onsuccess = function (event) {
                 console.log("Embedding stored successfully!");
@@ -164,6 +164,7 @@ async function runEmbeddingPipeline(data) {
                 const title = x.title
                 const id = x.id
                 const lastAccessed = x.lastAccessed
+                const favIconUrl = x.favIconUrl
                 // console.log(`getting text from ${url}`)
                 // // const text = await getWebsiteTextFromUrl(url);
                 // let text = 'test text'
@@ -186,7 +187,7 @@ async function runEmbeddingPipeline(data) {
                 console.log('valid tf_model? ' + validModel)
                 const embedding = tf_model ? await createEmbedding(title) : null;
                 console.log('attempting to store...')
-                storeEmbedding(url, embedding, id, title, lastAccessed)
+                storeEmbedding(url, embedding, id, title, lastAccessed, favIconUrl)
                 console.log(`embedding: \n\n ${embedding}`);
                 return embedding
             }))
@@ -227,6 +228,7 @@ function makeObjectStore(db, dbStore) {
             objectStore.createIndex("url", "url", { unique: false });
             objectStore.createIndex("title", "title", { unique: false });
             objectStore.createIndex("lastAccessed", "lastAccessed", { unique: false });
+            objectStore.createIndex("favIconUrl", "favIconUrl", { unique: false });
             resolve(objectStore);
         } catch (error) {
             console.log('error creating object store with creator method');

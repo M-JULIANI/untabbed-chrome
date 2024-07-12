@@ -61,3 +61,41 @@ button {
 .loading span:nth-child(6) { animation-delay: 0.6s; }
 .loading span:nth-child(7) { animation-delay: 0.7s; }
 .loading span:nth-child(8) { animation-delay: 0.8s; }
+
+
+@keyframes loading-basic {
+  0% { opacity: 0.2; }
+  50% { opacity: 1; }
+  100% { opacity: 0.2; }
+}
+
+.loading-basic span {
+  animation-name: loading;
+  animation-duration: 1.2s;
+  animation-iteration-count: infinite;
+}
+
+.loading-basic span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.loading-basic span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+.popover-top-right {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 10;
+}
+
+.outline-menu {
+  border: 1px solid #ccc; /* Example border style */
+  background-color: transparent;
+}
+
+.outline-item {
+  border: 1px solid #ccc; /* Example border style for items */
+  background-color: transparent;
+}

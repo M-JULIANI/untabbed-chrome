@@ -1,15 +1,32 @@
 import './globals.css'
 import './App.css'
 import { useState, useEffect } from 'react'
-import { Stage, Container, Sprite, Text, Graphics } from '@pixi/react';
+import { Stage, Container, Text, Graphics, Sprite } from '@pixi/react';
 import { UMAP } from 'umap-js';
 import axios from 'axios'
 import TurndownService from 'turndown'
 import Prando from 'prando'
 import { useCallback } from "react";
-import { TextStyle } from "pixi.js";
 import '@pixi/unsafe-eval'
-import { SliderDemo } from './SliderDemo'
+// import { SliderDemo } from './SliderDemo'
+import * as PIXI from 'pixi.js';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { Sheet, SheetClose, SheetContent, SheetDescription, SheetFooter, SheetHeader, SheetTitle, SheetTrigger } from './components/ui/sheet';
+import { Button } from './components/ui/button';
+import { Label } from './components/ui/label';
+import { Input } from './components/ui/inputs';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from './components/ui/select';
+import { Separator } from './components/ui/separator';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from './components/ui/accordion';
+import { DropShadowFilter } from '@pixi/filter-drop-shadow';
+import { Menubar, MenubarCheckboxItem, MenubarContent, MenubarItem, MenubarMenu, MenubarRadioGroup, MenubarRadioItem, MenubarSeparator, MenubarShortcut, MenubarSub, MenubarSubContent, MenubarSubTrigger, MenubarTrigger } from './components/ui/menubar';
+import { Slider } from './components/ui/slider';
+import { stubResults } from './lib/data/stubResults';
+import { stubTabs } from './lib/data/stubTabs';
 
 const indexdb_name = "untabbedDB";
 const indexdb_store = "textStore";
@@ -28,15 +45,30 @@ const colorMap = {
   "Writing": "#D1B3E6"
 };
 
-
 const WebNode = ({ radius, nodeInfo, colorMap }: { radius: number, nodeInfo: any, colorMap?: any }) => {
   const { x, y, schema } = nodeInfo;
   console.log('logging...')
   const draw = useCallback((g: any) => {
     g.clear();
-    g.beginFill('red'); // Example color, change as needed
+    // g.beginFill('#E9E9E9'); // Example color, change as needed
+    // g.drawCircle(x, y, radius);
+    // g.endFill();
+
+    const dropShadow = new DropShadowFilter({
+      blur: 3,
+      quality: 5,
+      distance: 5,
+      rotation: 45,
+      color: '#000000',
+      alpha: 0.5,
+    });
+    g.filters = [dropShadow];
+
+    // Begin drawing the circle
+    g.beginFill('#E9E9E9'); // Example color, change as needed
     g.drawCircle(x, y, radius);
     g.endFill();
+
   }, [x, y, radius]);
 
   // const tstyle = {
@@ -54,17 +86,25 @@ const WebNode = ({ radius, nodeInfo, colorMap }: { radius: number, nodeInfo: any
   return (
     <>
       <Graphics draw={draw} />
-      <Text text={schema?.title || "NADA"} x={x} y={y} anchor={0.5}
+      <Sprite
+        image={schema?.favIconUrl || "https://www.google.com/s2/favicons?domain=example.com"}
+        anchor={0.5}
+        x={x}
+        y={y}
+        width={radius * 0.75}
+        height={radius * 0.75}
+      />
+      {/* <Text text={schema?.title || "NADA"} x={x} y={y} anchor={0.5}
       // style={
       //         {...tstyle}
       //       }
-      />
+      /> */}
     </>
   );
 }
 
 const SIDE_GUTTER = 150
-const DEFAULT_RADIUS = 50
+const DEFAULT_RADIUS = 20
 const turndownService = new TurndownService();
 
 async function loadTabs() {
@@ -95,7 +135,6 @@ type TabData = {
   text: string;
 }
 
-
 function App() {
   const [results, setResults] = useState<any>();
   const [dimensions, setDimensions] = useState({
@@ -103,21 +142,85 @@ function App() {
     width: window.innerWidth,
   });
   const [dataLoaded, setDataLoaded] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingDrawing, setLoadingDrawing] = useState(false);
 
   const [isMounted, setIsMounted] = useState(false);
   const [stare, setStare] = useState(2); // Step 2
   const [localRecords, setLocalRecords] = useState<any[]>([]);
-  const [neighborCount, setNeighborCount] = useState(5);
-  const [minDistance, setMinDistance] = useState(0.001);
+  const [status, setStatus] = useState('');
+  const [neighborCount, setNeighborCount] = useState([5]);
+  const [neighborCountReady, setNeighborCountReady] = useState(true);
+  const [minDistance, setMinDistance] = useState([0.002]);
+  const [minDistanceReady, setMinDistanceReady] = useState(true);
+  const [resizeFlag, setResizeFlag] = useState(false);
+
+  //activate when not in dev mode
+  useEffect(() => {
+    // const runAsync = async () => {
+    //   const records = await fetchAllRecords();
+    //   if (records) {
+    //     setLocalRecords(records)
+    //     const normalizedPositions = await calculatePositionsFromEmbeddings(records)
+    //     setResults(normalizedPositions);
+    //   }
+    // };
+
+    // if (dataLoaded) {
+    //   setStatus('Calculating positions')
+    //   setDataLoaded(false)
+    //   setLoading(true);
+    //   runAsync().then(() => {
+    //     setLoading(false)
+    //     setStatus('');
+    //   });
+    // }
+    console.log('data loaded...')
+    //setResults(stubResults)
+    if (stubResults !== undefined) setLocalRecords(stubResults)
+    setLoading(false)
+  }, [dataLoaded]);
+
+  useEffect(() => {
+
+    console.log('calling this loop how many times?')
+    const runAsync = async () => {
+      const normalizedPositions = await calculatePositionsFromEmbeddings(localRecords, neighborCount[0], minDistance[0])
+      if (normalizedPositions)
+        setResults(normalizedPositions);
+    };
+
+
+    if (localRecords.length > 0 && neighborCountReady && minDistanceReady) {
+      //reset
+      setMinDistanceReady(false);
+      setNeighborCountReady(false);
+      setLoadingDrawing(true)
+      runAsync().then(() => {
+        setLoadingDrawing(false)
+        setLoading(false)
+      });
+    }
+    if (localRecords.length > 0 && resizeFlag) {
+      setResizeFlag(false)
+      setLoadingDrawing(true)
+      runAsync().then(() => {
+        setLoadingDrawing(false)
+        setLoading(false)
+      });
+    }
+
+  }, [neighborCountReady, minDistanceReady, localRecords, resizeFlag])
+
+
 
   useEffect(() => {
     // Example of importing a worker in your application
     const tfWorker = new Worker(new URL('tf-worker.js', import.meta.url), { type: 'module' });
 
     async function fetchDataAndPostMessage() {
-      setLoading(true)
-      const tabs = await loadTabs();
+      //const tabs = await loadTabs();
+      const tabs = stubTabs;
       if (tabs.length < 1) {
         console.log('No tabs loaded.');
       } else {
@@ -140,23 +243,22 @@ function App() {
       }
     }
 
+    console.log('loading tabs from APP')
+    setLoading(true)
+    setStatus('Loading tabs')
+    // fetchDataAndPostMessage();
+
+    //REMOVE
+    setDataLoaded(true);
+
     tfWorker.onmessage = function (e) {
       const { result } = e.data;
       console.log('Result from TensorFlow.js computation:', result);
       setDataLoaded(true);
-      setLoading(false)
-      // Handle the result
+      setStatus('Tabs loaded')
     };
 
-    console.log('loading tabs from APP')
-    fetchDataAndPostMessage();
-
     return () => tfWorker.terminate(); // Clean up
-  }, []);
-
-
-  useEffect(() => {
-    setIsMounted(true);
   }, []);
 
 
@@ -166,6 +268,7 @@ function App() {
         height: window.innerHeight,
         width: window.innerWidth,
       });
+      setResizeFlag(true);
     }
 
     window.addEventListener('resize', handleResize);
@@ -231,26 +334,37 @@ function App() {
     });
   }
 
-  async function visualizeEmbeddings(records: any) {
+  async function tryVisualizeEmbeddings(records: any, nNeighbors: number, minDist: number) {
+    if (!records) undefined;
+    const results = await visualizeEmbeddings(records, nNeighbors, minDist)
+
+    if (results !== undefined) {
+      return results;
+    }
+    else {
+      console.log('retrying with fewer neighbors... ' + (nNeighbors - 1))
+      if (nNeighbors > 1) {
+        return await tryVisualizeEmbeddings(records, nNeighbors - 1, minDist)
+      }
+      else {
+        return undefined;
+      }
+    }
+  }
+
+  async function visualizeEmbeddings(records: any, nNeighbors: number, minDist: number) {
     const prng = new Prando(42);
     try {
       //@ts-ignore
-      const embeddings = records.map(x => x.embedding)
+      const embeddings = records.map(x => x.schema.embedding)
+      console.log({ records, embeddings })
       const filteredIndeces = embeddings
         .map((x: any, i: number) => x !== undefined ? i : -1)
         .filter((i: any) => i !== undefined);
 
-
-      // const embeddingIdPair = filteredIndeces.map((x, i) => {
-      //   return { embedding: x, id: stubData[i].id }
-      // })
-
       const nonNullEmbeddings = filteredIndeces.map((x: any, i: number) => embeddings[i])
-
-      // const nonNullIds = embeddingIdPair.map(x => x.id)
-      const umap = new UMAP({ nNeighbors: 5, random: () => prng.next(), minDist: 0.001, nComponents: 2 });
-      // console.log('this is causing the problem?')
-      // console.log(nonNullEmbeddings)
+      console.log({ nonNullEmbeddings })
+      const umap = new UMAP({ nNeighbors, random: () => prng.next(), minDist, nComponents: 2 });
       const positions = await umap.fitAsync(nonNullEmbeddings);
       return { positions, ids: filteredIndeces };
     }
@@ -287,9 +401,10 @@ function App() {
     return normalizedPositions;
   }
 
-  async function calculatePositionsFromEmbeddings(records: any) {
+  async function calculatePositionsFromEmbeddings(records: any, nCount: number, minDist: number) {
     console.log('about to visualize embeddings')
-    const rawPositions = await visualizeEmbeddings(records)
+    console.log({ records })
+    const rawPositions = await tryVisualizeEmbeddings(records, nCount, minDist)
     console.log('raw positions')
     console.log({ rawPositions })
     if (rawPositions !== undefined) {
@@ -301,77 +416,150 @@ function App() {
     return undefined
   }
 
-  useEffect(() => {
-    const runAsync = async () => {
-      setDataLoaded(false)
-      console.log('pre running embedding pipeline')
-      const records = await fetchAllRecords();
-      if (records) {
-        setLocalRecords(records)
-        const normalizedPositions = await calculatePositionsFromEmbeddings(records)
-        setResults(normalizedPositions);
-      }
-      setLoading(false)
-    };
-
-    if (dataLoaded) {
-      runAsync();
-    }
-  }, [dataLoaded]);
-
-  useEffect(() => {
-    const runAsync = async () => {
-      setLoading(true)
-      const normalizedPositions = await calculatePositionsFromEmbeddings(localRecords)
-      setResults(normalizedPositions);
-      setLoading(false)
-    };
-
-    if (localRecords)
-      runAsync();
-
-
-  }, [neighborCount, minDistance])
-
-
   console.log({ results })
 
+  // useEffect(() => {
+  //   console.log('slider value: ' + stare)
+  // }, [stare])
+
+  // if (!isMounted) {
+  //   return null;
+  // }
+
   useEffect(() => {
-    console.log('slider value: ' + stare)
-  }, [stare])
-  if (!isMounted) {
-    return null;
-  }
+    console.log('min distance: ')
+    console.log(minDistance)
+  }, [minDistance])
+
+  console.log('loading: ' + loading)
 
   return (
     <>
       {loading ? (
-        <div style={{
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          height: '100vh',
-          fontSize: '72px'
-        }} className="loading"><span>u</span><span>n</span><span>t</span><span>a</span><span>b</span>
-          <span>b</span><span>e</span><span>d</span>
-        </div>
+        <>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column', // Stack the divs vertically
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '100vh',
+          }}>
+            <div style={{
+              fontSize: '72px'
+            }} className="loading">
+              <span>u</span><span>n</span><span>t</span><span>a</span><span>b</span>
+              <span>b</span><span>e</span><span>d</span>
+            </div>
+            <div className="loading-basic" style={{
+              color: 'gray',
+              fontSize: '24px',
+              textAlign: 'center',
+            }}>
+              {status}<span>.</span><span>.</span><span>.</span>
+            </div>
+          </div>
+        </>
       ) : (
         <>
- 
-          <Stage width={dimensions.width} height={dimensions.height} options={{ background: 0x1099bb }}>
-            {results && results.map((result: any, key: number) => {
-              return <WebNode key={result?.schema?.id || key} nodeInfo={result} radius={DEFAULT_RADIUS} />
-            })}
-          </Stage>
-          <input
-            type="range"
-            min="2"
-            max="6"
-            value={stare}
-            onChange={(e) => setStare(Number(e.target.value))}
-          />
-                   <SliderDemo />
+          {loadingDrawing && <div className="loading">Drawing...</div>}
+          <div style={{ position: 'relative' }}>
+            <Stage width={dimensions.width} height={dimensions.height} options={{ background: '#6B6B6B' }}>
+              {results && results.map((result: any, key: number) => {
+                return <WebNode key={result?.schema?.id || key} nodeInfo={result} radius={DEFAULT_RADIUS} />
+              })}
+            </Stage>
+            <div className="popover-top-right flex flex-col gap-2 px-8 py-4" style={{ margin: '10px 20px' }}>
+              <Menubar className="outline-menu">
+                <MenubarMenu>
+                  <MenubarTrigger>Tabs</MenubarTrigger>
+                  <MenubarContent>
+                    <MenubarItem>
+                      Collapse All <MenubarShortcut>⌘C</MenubarShortcut>
+                    </MenubarItem>
+                    <MenubarItem>
+                      Expand All<MenubarShortcut>⌘E</MenubarShortcut>
+                    </MenubarItem>
+                    <MenubarSeparator />
+                    <MenubarItem>
+                      Print... <MenubarShortcut>⌘P</MenubarShortcut>
+                    </MenubarItem>
+                  </MenubarContent>
+                </MenubarMenu>
+                <MenubarMenu>
+                  <MenubarTrigger>View Mode</MenubarTrigger>
+                  <MenubarContent>
+                    <MenubarCheckboxItem>Semantic</MenubarCheckboxItem>
+                    <MenubarCheckboxItem checked>
+                      Concentric
+                    </MenubarCheckboxItem>
+                    <MenubarItem inset>
+                      Historical
+                    </MenubarItem>
+                    <MenubarSeparator />
+                    <div className="flex flex-col justify-between gap-6 my-4 ml-8">
+                      <div className="grid grid-cols-2 items-center gap-4 mr-8">
+                        <Label htmlFor="width">Distance</Label>
+                        <Slider
+                          className={"flex-grow"}
+                          min={0.001}
+                          defaultValue={minDistance}
+                          step={0.001}
+                          max={0.15}
+                          onValueChange={(v) => setMinDistance(v)}
+                          onBlur={(v) => {
+                            setMinDistanceReady(true)
+                          }}
+                        />
 
+                      </div>
+                      <div className="grid grid-cols-2 items-center gap-4 mr-8">
+                        <Label htmlFor="width">Neighbors</Label>
+                        <Slider
+                          className={"flex-grow"}
+                          min={3}
+                          defaultValue={neighborCount}
+                          step={1}
+                          max={15}
+                          onValueChange={(v) => setNeighborCount(v)}
+                          onBlur={(v) => {
+                            setNeighborCountReady(true)
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </MenubarContent>
+                </MenubarMenu>
+                <MenubarMenu>
+                  <MenubarTrigger>Settings</MenubarTrigger>
+                  <MenubarContent>
+                    <MenubarRadioGroup value="benoit">
+                      <MenubarRadioItem value="andy">Andy</MenubarRadioItem>
+                      <MenubarRadioItem value="benoit">Benoit</MenubarRadioItem>
+                      <MenubarRadioItem value="Luis">Luis</MenubarRadioItem>
+                    </MenubarRadioGroup>
+                    <MenubarSeparator />
+                    <MenubarItem inset>Edit...</MenubarItem>
+                    <MenubarSeparator />
+                    <MenubarItem inset>Add Profile...</MenubarItem>
+                  </MenubarContent>
+                </MenubarMenu>
+                <MenubarMenu>
+                  <MenubarTrigger>Analytics</MenubarTrigger>
+                  <MenubarContent>
+                    <MenubarRadioGroup value="benoit">
+                      <MenubarRadioItem value="andy">Andy</MenubarRadioItem>
+                      <MenubarRadioItem value="benoit">Benoit</MenubarRadioItem>
+                      <MenubarRadioItem value="Luis">Luis</MenubarRadioItem>
+                    </MenubarRadioGroup>
+                    <MenubarSeparator />
+                    <MenubarItem inset>Edit...</MenubarItem>
+                    <MenubarSeparator />
+                    <MenubarItem inset>Add Profile...</MenubarItem>
+                  </MenubarContent>
+                </MenubarMenu>
+              </Menubar>
+            </div>
+          </div>
         </>
       )}
     </>
