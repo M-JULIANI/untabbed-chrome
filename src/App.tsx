@@ -27,6 +27,7 @@ import { Menubar, MenubarCheckboxItem, MenubarContent, MenubarItem, MenubarMenu,
 import { Slider } from './components/ui/slider';
 import { stubResults } from './lib/data/stubResults';
 import { stubTabs } from './lib/data/stubTabs';
+import defaultImage from './favicon.svg';
 
 const indexdb_name = "untabbedDB";
 const indexdb_store = "textStore";
@@ -62,7 +63,7 @@ const WebNode = ({ radius, nodeInfo, colorMap }: { radius: number, nodeInfo: any
       color: '#000000',
       alpha: 0.5,
     });
-    g.filters = [dropShadow];
+    //g.filters = [dropShadow];
 
     // Begin drawing the circle
     g.beginFill('#E9E9E9'); // Example color, change as needed
@@ -83,16 +84,40 @@ const WebNode = ({ radius, nodeInfo, colorMap }: { radius: number, nodeInfo: any
   //   wordWrap: false,
   //   wordWrapWidth: 440,
   // };
+  const [imageUrl, setImageUrl] = useState(schema?.favIconUrl || defaultImage);
+
+  useEffect(() => {
+    // Function to check image availability
+    const checkImage = async (url) => {
+      try {
+        const response = await fetch(url, { method: 'HEAD' });
+        if (response.ok) {
+          // If the image is available, set it
+          setImageUrl(url);
+        } else {
+          // If the image is not available, fallback to the default image
+          setImageUrl(defaultImage);
+        }
+      } catch (error) {
+        // Handle errors (e.g., network issues) by falling back to the default image
+        setImageUrl(defaultImage);
+      }
+    };
+  
+    // Call checkImage with the schema's favicon URL or the default image URL
+    checkImage(schema?.favIconUrl || defaultImage);
+  }, [schema?.favIconUrl]);
+
   return (
     <>
       <Graphics draw={draw} />
       <Sprite
-        image={schema?.favIconUrl || "https://www.google.com/s2/favicons?domain=example.com"}
+        image={imageUrl}
         anchor={0.5}
         x={x}
         y={y}
-        width={radius * 0.75}
-        height={radius * 0.75}
+        width={radius * 1}
+        height={radius * 1}
       />
       {/* <Text text={schema?.title || "NADA"} x={x} y={y} anchor={0.5}
       // style={
@@ -104,7 +129,7 @@ const WebNode = ({ radius, nodeInfo, colorMap }: { radius: number, nodeInfo: any
 }
 
 const SIDE_GUTTER = 150
-const DEFAULT_RADIUS = 20
+const DEFAULT_RADIUS = 40
 const turndownService = new TurndownService();
 
 async function loadTabs() {
@@ -245,7 +270,7 @@ function App() {
 
     console.log('loading tabs from APP')
     setLoading(true)
-    setStatus('Loading tabs')
+    setStatus('Loading tabs...')
     // fetchDataAndPostMessage();
 
     //REMOVE
@@ -255,7 +280,7 @@ function App() {
       const { result } = e.data;
       console.log('Result from TensorFlow.js computation:', result);
       setDataLoaded(true);
-      setStatus('Tabs loaded')
+      setStatus('Tabs loaded... ')
     };
 
     return () => tfWorker.terminate(); // Clean up
@@ -396,7 +421,7 @@ function App() {
       const newX = remap(x[0], inputMinX, inputMaxX, outputMinX, outputMaxX)
       const newY = remap(x[1], inputMinY, inputMaxY, outputMinY, outputMaxY)
       const index = indeces[i]
-      return { x: newX, y: newY, schema: records[index] }
+      return { x: newX, y: newY, schema: records[index].schema }
     })
     return normalizedPositions;
   }
@@ -432,6 +457,7 @@ function App() {
   }, [minDistance])
 
   console.log('loading: ' + loading)
+  const statusChars = status.split('');
 
   return (
     <>
@@ -450,12 +476,10 @@ function App() {
               <span>u</span><span>n</span><span>t</span><span>a</span><span>b</span>
               <span>b</span><span>e</span><span>d</span>
             </div>
-            <div className="loading-basic" style={{
-              color: 'gray',
-              fontSize: '24px',
-              textAlign: 'center',
-            }}>
-              {status}<span>.</span><span>.</span><span>.</span>
+            <div className="chatbox">
+              <div className="text">
+                {status}
+              </div>
             </div>
           </div>
         </>

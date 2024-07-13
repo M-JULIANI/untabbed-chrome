@@ -99,3 +99,53 @@ button {
   border: 1px solid #ccc; /* Example border style for items */
   background-color: transparent;
 }
+
+:root {
+  --characters: 24; /* Number of characters to display */
+  --duration: 4s; /* Duration of the animation */
+  --blink-duration: 0.1s;
+}
+
+@keyframes typing {
+  0% { width: 0; }
+  100% { width: calc(var(--characters) * 1.25ch); } /* Approximate width of each character */
+}
+
+@keyframes blink {
+  0%, 100% { border-color: transparent; }
+  50% { border-color: #333; }
+}
+
+@keyframes typing-blink {
+  0% { width: 0; border-right: 2px solid #333; }
+  87.5% { width: calc(var(--characters) * 0.6ch); }
+  100% { width: calc(var(--characters) * 0.6ch); border-right: 2px solid #333; }
+}
+
+.chatbox {
+  display: inline-block;
+  font-family: monospace;
+  font-size: 1rem;
+  color: #333;
+  background-color: #f5f5f5;
+  border: 1px solid #ddd;
+  padding: 10px;
+  border-radius: 5px;
+  width: 60%;
+  max-width: 170px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  display: flex;
+  align-items: center; /* Align text vertically */
+}
+
+.text {
+  display: inline-block;
+  border-right: 2px solid #333;
+  white-space: nowrap;
+  overflow: hidden;
+  width: 0; /* Start with 0 width to animate width */
+  animation: typing var(--duration) steps(var(--characters), end),
+             blink calc(var(--blink-duration) * 3) step-end 3 alternate;
+  animation-iteration-count: infinite;
+}
