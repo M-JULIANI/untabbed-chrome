@@ -3,8 +3,8 @@
     - [x] get embedding from text
     - [x] get 2d position from embedding
     - [x] draw all positions on the canvas
-- [ ] investigate why i am getting different layouts on refresh, maybe try specifying a specific seed for a more deterministic behavior
-- [ ] grab all open tabs
+- [x] investigate why i am getting different layouts on refresh, maybe try specifying a specific seed for a more deterministic behavior
+- [x] grab all open tabs
 
 - [ ] get service-worker or content pages working
 <!-- - [ ] get the 'pipeline' to initialize when the extension in active
@@ -32,22 +32,22 @@ system:
 - [ ] cron job
     - check number of entries, delete any in excess of X from db every day
 - [ ] canvas
-    - [ ] onHover
-        - metadata
+    - [x] onHover
+        -[x]  title & url
     - [ ] onClick
         - goto?
+    - [ ] display:
+        - [ ] radius by visits/last accessed
+    - [ ] color by? 
+        - [ ] category?
+        - [ ] random gradient?
 - [ ] settings
     - collapse all windows
     - display all windows
 - [ ] views:
-    - clustered by semantics
-    - clustered (1d) by semantics, and chronological
-
-
-    - radius by visits
-    - color by? 
-        - category?
-        - random gradient?
+    - semantics 2d
+    - concentric 1d
+    - chronological 1d
 
 - [ ] considerations
     - deduplication

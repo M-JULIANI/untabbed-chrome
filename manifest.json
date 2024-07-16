@@ -9,7 +9,7 @@
         "tabs"
     ],
     "action": {
-        "default_title": "Untabbed"
+        "default_title": "Untabbed-Chrome"
     },
     "background": {
         "service_worker": "src/service-worker.js"
