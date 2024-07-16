@@ -1,6 +1,6 @@
 import './globals.css'
 import './App.css'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, MouseEventHandler } from 'react'
 import { Stage, Container, Text, Graphics, Sprite } from '@pixi/react';
 import { UMAP } from 'umap-js';
 import axios from 'axios'
@@ -27,7 +27,9 @@ import { Menubar, MenubarCheckboxItem, MenubarContent, MenubarItem, MenubarMenu,
 import { Slider } from './components/ui/slider';
 import { stubResults } from './lib/data/stubResults';
 import { stubTabs } from './lib/data/stubTabs';
-import defaultImage from './favicon.svg';
+import { DrawNode } from './components/DrawNode'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/ui/tooltip';
+import { cn } from './lib/utils';
 
 const indexdb_name = "untabbedDB";
 const indexdb_store = "textStore";
@@ -45,88 +47,6 @@ const colorMap = {
   "Community": "#FF8533",
   "Writing": "#D1B3E6"
 };
-
-const WebNode = ({ radius, nodeInfo, colorMap }: { radius: number, nodeInfo: any, colorMap?: any }) => {
-  const { x, y, schema } = nodeInfo;
-  console.log('logging...')
-  const draw = useCallback((g: any) => {
-    g.clear();
-    // g.beginFill('#E9E9E9'); // Example color, change as needed
-    // g.drawCircle(x, y, radius);
-    // g.endFill();
-
-    const dropShadow = new DropShadowFilter({
-      blur: 3,
-      quality: 5,
-      distance: 5,
-      rotation: 45,
-      color: '#000000',
-      alpha: 0.5,
-    });
-    //g.filters = [dropShadow];
-
-    // Begin drawing the circle
-    g.beginFill('#E9E9E9'); // Example color, change as needed
-    g.drawCircle(x, y, radius);
-    g.endFill();
-
-  }, [x, y, radius]);
-
-  // const tstyle = {
-  //   align: "center",
-  //   fontFamily: "monospace",
-  //   fontSize: 12,
-  //   fontWeight: "100",
-  //   fill: '#000000',
-  //   stroke: "#01d27e",
-  //   strokeThickness: 0.5,
-  //   letterSpacing: 1,
-  //   wordWrap: false,
-  //   wordWrapWidth: 440,
-  // };
-  const [imageUrl, setImageUrl] = useState(schema?.favIconUrl || defaultImage);
-
-  useEffect(() => {
-    // Function to check image availability
-    const checkImage = async (url) => {
-      try {
-        const response = await fetch(url, { method: 'HEAD' });
-        if (response.ok) {
-          // If the image is available, set it
-          setImageUrl(url);
-        } else {
-          // If the image is not available, fallback to the default image
-          setImageUrl(defaultImage);
-        }
-      } catch (error) {
-        // Handle errors (e.g., network issues) by falling back to the default image
-        setImageUrl(defaultImage);
-      }
-    };
-  
-    // Call checkImage with the schema's favicon URL or the default image URL
-    checkImage(schema?.favIconUrl || defaultImage);
-  }, [schema?.favIconUrl]);
-
-  return (
-    <>
-      <Graphics draw={draw} />
-      <Sprite
-        image={imageUrl}
-        anchor={0.5}
-        x={x}
-        y={y}
-        width={radius * 1}
-        height={radius * 1}
-      />
-      {/* <Text text={schema?.title || "NADA"} x={x} y={y} anchor={0.5}
-      // style={
-      //         {...tstyle}
-      //       }
-      /> */}
-    </>
-  );
-}
 
 const SIDE_GUTTER = 150
 const DEFAULT_RADIUS = 40
@@ -162,6 +82,7 @@ type TabData = {
 
 function App() {
   const [results, setResults] = useState<any>();
+  const [previousResult, setPreviousResult] = useState<any>();
   const [dimensions, setDimensions] = useState({
     height: window.innerHeight,
     width: window.innerWidth,
@@ -179,36 +100,57 @@ function App() {
   const [minDistance, setMinDistance] = useState([0.002]);
   const [minDistanceReady, setMinDistanceReady] = useState(true);
   const [resizeFlag, setResizeFlag] = useState(false);
+  const ref = useRef(null);
+  const [bounds, setBounds] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const [hovered, setHovered] = useState<string>('');
+  const [tooltip, setTooltip] = useState({ visible: false, content: '', url: '', x: 0, y: 0 });
+
+  useEffect(() => {
+    const updateBounds = () => {
+      if (ref.current) {
+        //@ts-ignore
+        const rect = ref.current.getBoundingClientRect();
+        setBounds({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+      }
+    };
+
+    window.addEventListener('resize', updateBounds);
+    updateBounds();
+
+    return () => window.removeEventListener('resize', updateBounds);
+  }, []);
 
   //activate when not in dev mode
   useEffect(() => {
-    // const runAsync = async () => {
-    //   const records = await fetchAllRecords();
-    //   if (records) {
-    //     setLocalRecords(records)
-    //     const normalizedPositions = await calculatePositionsFromEmbeddings(records)
-    //     setResults(normalizedPositions);
-    //   }
-    // };
+    const runAsync = async () => {
+      const records = await fetchAllRecords();
+      if (records) {
+        setLocalRecords(records)
+        const normalizedPositions = await calculatePositionsFromEmbeddings(records, neighborCount[0], minDistance[0])
+        setResults(normalizedPositions);
+      }
+    };
 
-    // if (dataLoaded) {
-    //   setStatus('Calculating positions')
-    //   setDataLoaded(false)
-    //   setLoading(true);
-    //   runAsync().then(() => {
-    //     setLoading(false)
-    //     setStatus('');
-    //   });
-    // }
+    if (dataLoaded) {
+      setStatus('Calculating positions')
+      setDataLoaded(false)
+      setLoading(true);
+      runAsync().then(() => {
+        setLoading(false)
+        setStatus('');
+      });
+    }
     console.log('data loaded...')
     //setResults(stubResults)
-    if (stubResults !== undefined) setLocalRecords(stubResults)
+   // if (stubResults !== undefined) setLocalRecords(stubResults)
     setLoading(false)
   }, [dataLoaded]);
+
 
   useEffect(() => {
 
     console.log('calling this loop how many times?')
+    console.log({ localRecords })
     const runAsync = async () => {
       const normalizedPositions = await calculatePositionsFromEmbeddings(localRecords, neighborCount[0], minDistance[0])
       if (normalizedPositions)
@@ -216,9 +158,17 @@ function App() {
     };
 
 
-    if (localRecords.length > 0 && neighborCountReady && minDistanceReady) {
+    if (localRecords.length > 0 && minDistanceReady) {
       //reset
       setMinDistanceReady(false);
+      setLoadingDrawing(true)
+      runAsync().then(() => {
+        setLoadingDrawing(false)
+        setLoading(false)
+      });
+    }
+    if (localRecords.length > 0 && neighborCountReady) {
+      //reset
       setNeighborCountReady(false);
       setLoadingDrawing(true)
       runAsync().then(() => {
@@ -235,7 +185,7 @@ function App() {
       });
     }
 
-  }, [neighborCountReady, minDistanceReady, localRecords, resizeFlag])
+  }, [neighborCountReady, minDistanceReady, resizeFlag, localRecords])
 
 
 
@@ -244,8 +194,10 @@ function App() {
     const tfWorker = new Worker(new URL('tf-worker.js', import.meta.url), { type: 'module' });
 
     async function fetchDataAndPostMessage() {
-      //const tabs = await loadTabs();
-      const tabs = stubTabs;
+      const tabs = await loadTabs();
+      //const tabs = stubTabs;
+      console.log('here...')
+      console.log({tabs})
       if (tabs.length < 1) {
         console.log('No tabs loaded.');
       } else {
@@ -271,10 +223,10 @@ function App() {
     console.log('loading tabs from APP')
     setLoading(true)
     setStatus('Loading tabs...')
-    // fetchDataAndPostMessage();
+    fetchDataAndPostMessage();
 
     //REMOVE
-    setDataLoaded(true);
+    // setDataLoaded(true);
 
     tfWorker.onmessage = function (e) {
       const { result } = e.data;
@@ -457,7 +409,83 @@ function App() {
   }, [minDistance])
 
   console.log('loading: ' + loading)
-  const statusChars = status.split('');
+
+  function isPointInsideRectangle(
+    point: { x: number, y: number },
+    rect: { position: { x: number, y: number }; length: number; height: number },
+  ): boolean {
+    return (
+      point.x >= rect.position.x - rect.length * 0.5 &&
+      point.x <= rect.position.x + rect.length * 0.5 &&
+      point.y >= rect.position.y - rect.height * 0.5 &&
+      point.y <= rect.position.y + rect.height * 0.5
+    );
+  }
+
+  const checkHover = (point: { x: number, y: number }, results: any[]) => {
+    let isHovering: string = '';
+    results.forEach((result, i) => {
+      if (
+        isPointInsideRectangle(point, {
+          position: { x: result.x, y: result.y },
+          length: DEFAULT_RADIUS,
+          height: DEFAULT_RADIUS,
+        })
+      ) {
+        isHovering = result.schema.id || '';
+        return;
+      }
+    });
+    return isHovering;
+  };
+
+  const onMouseMove: MouseEventHandler = (e) => {
+    if (loading || loadingDrawing) return;
+    const point = { x: e.clientX, y: e.clientY };
+
+    // check if hovering polygon
+    const idx = checkHover(point, results);
+    if (idx !== '') {
+      if (hovered !== idx) {
+        setHovered(idx);
+        const match = results.find((r: any) => r.schema.id === idx);
+        setTooltip({
+          visible: true,
+          content: match?.schema.title || '',
+          url: match?.schema.url || '',
+          x: match.x,
+          y: match.y
+        });
+      }
+    }
+    else {
+      if (hovered !== '') {
+        setHovered('');
+        setTooltip({
+          visible: false,
+          content: '',
+          url: '',
+          x: e.clientX,
+          y: e.clientY
+        });
+      }
+    }
+  }
+
+  //handle open tab
+  const onMouseDown: MouseEventHandler = (e) => {
+    if (loading || loadingDrawing) return;
+    const point = { x: e.clientX, y: e.clientY };
+
+    if(hovered){
+    const match = results.find((r: any) => r.schema.id === hovered);
+
+    }
+  }
+
+  useEffect(() => {
+    console.log('hovered: ' + hovered)
+  }, [hovered])
 
   return (
     <>
@@ -485,13 +513,69 @@ function App() {
         </>
       ) : (
         <>
-          {loadingDrawing && <div className="loading">Drawing...</div>}
+          {loadingDrawing ? (<div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              height: "100vh",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              backgroundColor: "rgba(255, 255, 255, 0.8)",
+              zIndex: 2,
+            }}
+          >
+            <div className="chatbox">
+              <div className="text">
+                Re-drawing...
+              </div>
+            </div>
+          </div>) : null}
           <div style={{ position: 'relative' }}>
-            <Stage width={dimensions.width} height={dimensions.height} options={{ background: '#6B6B6B' }}>
+            <Stage width={dimensions.width} height={dimensions.height}
+              options={{ background: '#6B6B6B' }}
+              onMouseMove={onMouseMove}
+              onMouseDown={onMouseDown}>
               {results && results.map((result: any, key: number) => {
-                return <WebNode key={result?.schema?.id || key} nodeInfo={result} radius={DEFAULT_RADIUS} />
+                return <DrawNode key={result?.schema?.id || key} nodeInfo={result} radius={DEFAULT_RADIUS} hovered={hovered} />
               })}
             </Stage>
+            {tooltip.visible && (
+              <div style={{
+                position: 'absolute',
+                left: tooltip.x,
+                top: tooltip.y,
+                padding: '5px',
+                background: 'red',
+                border: '1px solid black',
+                borderRadius: '5px',
+                pointerEvents: 'none', // Prevents the tooltip from interfering with mouse events
+                transform: `translate(-50%, -${(DEFAULT_RADIUS * 2) + 20}px)`, // Adjusts the position to be above the cursor
+                whiteSpace: 'nowrap'
+              }} className={cn(
+                "z-50 overflow-hidden rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+              )}>
+                <div className="flex-col">
+                  <div style={{
+                    fontWeight: 'bold',
+                    textOverflow: 'ellipsis',
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap',
+                    maxWidth: '200px',
+                  }}>{tooltip.content}</div>
+                  <div style={{
+                    textOverflow: 'ellipsis',
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap',
+                    maxWidth: '200px',
+                  }}>{tooltip.url}</div>
+                </div>
+              </div>
+            )}
+
+
             <div className="popover-top-right flex flex-col gap-2 px-8 py-4" style={{ margin: '10px 20px' }}>
               <Menubar className="outline-menu">
                 <MenubarMenu>
