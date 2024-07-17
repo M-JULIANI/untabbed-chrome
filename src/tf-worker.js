@@ -6,6 +6,7 @@ import * as use from '@tensorflow-models/universal-sentence-encoder';
 
 const indexdb_name = "untabbedDB";
 const indexdb_store = "textStore";
+const db_version = 2;
 
 self.window = self;
 
@@ -60,7 +61,7 @@ class TabHandler {
 }
 
 async function fetchAllRecords() {
-    let request = indexedDB.open(indexdb_name, 1);
+    let request = indexedDB.open(indexdb_name, db_version);
     return new Promise((resolve, reject) => {
         request.onsuccess = function (event) {
             let db = event.target.result;
@@ -86,6 +87,7 @@ async function fetchAllRecords() {
                 console.error("Transaction or objectStore access failed", error);
                 reject("Transaction or objectStore access error: " + error.message);
             }
+            db.close();
         };
 
         request.onerror = function (event) {
@@ -96,14 +98,14 @@ async function fetchAllRecords() {
 }
 
 function storeEmbedding(url, embedding, id, title, lastAccessed, favIconUrl) {
-    console.log('attempting to store embedding...')
-    let request = indexedDB.open(indexdb_name, 1);
+    //console.log('attempting to store embedding...')
+    let request = indexedDB.open(indexdb_name, db_version);
 
-    request.onupgradeneeded = function (event) {
+    request.onupgradeneeded = async function (event) {
         try {
             let db = event.target.result;
             if (!db.objectStoreNames.contains(indexdb_store)) {
-                makeObjectStore(db, indexdb_store)
+                await makeObjectStore(db, indexdb_store)
             }
         } catch (error) {
             console.error("Upgrade needed error: ", error);
@@ -111,13 +113,13 @@ function storeEmbedding(url, embedding, id, title, lastAccessed, favIconUrl) {
     };
 
     request.onsuccess = function (event) {
+        let db = event.target.result;
         try {
-            let db = event.target.result;
             console.log('onsuccess, db: ' + db)
             if (!db) return
             let transaction = db.transaction([indexdb_store], "readwrite");
             let objectStore = transaction.objectStore(indexdb_store);
-            let request = objectStore.add({ url, id, title, embedding, lastAccessed, favIconUrl });
+            let request = objectStore.add({ url: url || '', id, title, embedding, lastAccessed: lastAccessed|| 0, favIconUrl: favIconUrl || '' });
 
             request.onsuccess = function (event) {
                 console.log("Embedding stored successfully!");
@@ -129,6 +131,7 @@ function storeEmbedding(url, embedding, id, title, lastAccessed, favIconUrl) {
         } catch (error) {
             console.error("Transaction error: ", error);
         }
+        db.close();
     };
 
     request.onerror = function (event) {
@@ -182,13 +185,13 @@ async function runEmbeddingPipeline(data) {
                 //   return undefined
                 // }
 
-                console.log(`website title:  ${title}`);
+               // console.log(`website title:  ${title}`);
                 const validModel = tf_model !== undefined;
-                console.log('valid tf_model? ' + validModel)
+               // console.log('valid tf_model? ' + validModel)
                 const embedding = tf_model ? await createEmbedding(title) : null;
-                console.log('attempting to store...')
+               // console.log('attempting to store...')
                 storeEmbedding(url, embedding, id, title, lastAccessed, favIconUrl)
-                console.log(`embedding: \n\n ${embedding}`);
+                //console.log(`embedding: \n\n ${embedding}`);
                 return embedding
             }))
             console.log('promises')
@@ -220,7 +223,7 @@ function checkIndexes(db, indexdb_store) {
     }
 }
 // Modified version to handle promises
-function makeObjectStore(db, dbStore) {
+async function makeObjectStore(db, dbStore) {
     return new Promise((resolve, reject) => {
         const objectStore = db.createObjectStore(dbStore, { keyPath: 'id' });
         try {
@@ -240,19 +243,20 @@ function makeObjectStore(db, dbStore) {
 async function initializeDatabase() {
     try {
         const db = await new Promise((resolve, reject) => {
-            const request = indexedDB.open(indexdb_name, 1);
+            const request = indexedDB.open(indexdb_name, db_version);
 
             console.log('attempting to open DB__----____-');
 
-            request.onupgradeneeded = function (event) { // Make this handler async
+            request.onupgradeneeded = async function (event) { // Make this handler async
                 const db = event.target.result;
                 if (!db.objectStoreNames.contains(indexdb_store)) {
-                    makeObjectStore(db, indexdb_store); // Await the creation
+                    await makeObjectStore(db, indexdb_store); // Await the creation
                 }
             };
 
             request.onsuccess = function (event) {
                 resolve(event.target.result);
+                db.close();
             };
 
             request.onerror = function (event) {
@@ -297,7 +301,7 @@ self.onmessage = async (e) => {
             const tabHandler = new TabHandler();
             console.log('tabs to process... ' + tabs.length)
             await tabHandler.processTabs(tabs);
-            console.log('TensorFlow.js version:', tf.version.tfjs); e
+            console.log('TensorFlow.js version:', tf.version.tfjs);
             self.postMessage({ result: 'Computation done' });
         }
     } catch (error) {

@@ -5,11 +5,11 @@ chrome.action.onClicked.addListener(function (tab) {
 
 
 // Function to check for changes in the IndexedDB store
-function pollIndexedDBChanges(dbName, storeName) {
+function pollIndexedDBChanges(dbName, storeName, version, interval) {
   let lastCheck = 0; // Timestamp of the last check
 
   const checkForChanges = () => {
-    const request = indexedDB.open(dbName, 1);
+    const request = indexedDB.open(dbName, version);
 
     request.onsuccess = function(event) {
       const db = event.target.result;
@@ -49,8 +49,12 @@ function pollIndexedDBChanges(dbName, storeName) {
   };
 
   // Poll for changes every 10 seconds
-  setInterval(checkForChanges, 10000);
+  setInterval(checkForChanges, interval);
 }
 
+const indexdb_name = "untabbedDB";
+const indexdb_store = "textStore";
+const db_version = 2;
+
 // Call the function with your database and store names
-pollIndexedDBChanges("untabbedDB", "textStore");
+pollIndexedDBChanges(indexdb_name, indexdb_store, db_version, 30000);
