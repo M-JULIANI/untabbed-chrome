@@ -26,13 +26,20 @@ import { DropShadowFilter } from '@pixi/filter-drop-shadow';
 import { Menubar, MenubarCheckboxItem, MenubarContent, MenubarItem, MenubarMenu, MenubarRadioGroup, MenubarRadioItem, MenubarSeparator, MenubarShortcut, MenubarSub, MenubarSubContent, MenubarSubTrigger, MenubarTrigger } from './components/ui/menubar';
 import { Slider } from './components/ui/slider';
 import { stubResults } from './lib/data/stubResults';
+import { stubResultsLarge } from './lib/data/stubResultsLarge';
 import { stubTabs } from './lib/data/stubTabs';
 import { DrawNode } from './components/DrawNode'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/ui/tooltip';
 import { cn } from './lib/utils';
 
+export function remap(num: number, inputMin: number, inputMax: number, outputMin: number, outputMax: number) {
+  const epsilon = 0; // small constant to avoid division by zero
+  return ((num - inputMin) / (inputMax - inputMin + epsilon)) * (outputMax - outputMin) + outputMin;
+}
+
 const indexdb_name = "untabbedDB";
 const indexdb_store = "textStore";
+const db_version = 2;
 const colorMap = {
   "Entertainment": "#FFB399",
   "General": "#FFD1B3",
@@ -49,7 +56,7 @@ const colorMap = {
 };
 
 const SIDE_GUTTER = 150
-const DEFAULT_RADIUS = 40
+const DEFAULT_RADIUS = 5
 const turndownService = new TurndownService();
 
 async function loadTabs() {
@@ -83,6 +90,8 @@ type TabData = {
 function App() {
   const [results, setResults] = useState<any>();
   const [previousResult, setPreviousResult] = useState<any>();
+  const [minLastAccessed, setMinLastAccessed] = useState(0);
+  const [maxLastAccessed, setMaxLastAccessed] = useState(100);
   const [dimensions, setDimensions] = useState({
     height: window.innerHeight,
     width: window.innerWidth,
@@ -104,6 +113,14 @@ function App() {
   const [bounds, setBounds] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [hovered, setHovered] = useState<string>('');
   const [tooltip, setTooltip] = useState({ visible: false, content: '', url: '', x: 0, y: 0 });
+  const [calculated_radius, setCalculatedRadius] = useState(100 / DEFAULT_RADIUS);
+  const [activeTabCount, setActiveTabCount] = useState(0);
+
+  useEffect(() => {
+    if (results) {
+      setCalculatedRadius(results.length / DEFAULT_RADIUS)
+    }
+  }, [results])
 
   useEffect(() => {
     const updateBounds = () => {
@@ -120,35 +137,80 @@ function App() {
     return () => window.removeEventListener('resize', updateBounds);
   }, []);
 
+
+  //runs when not all the things have been fetched correctly
+  useEffect(() => {
+    const runAsync = async () => {
+      const records = await fetchAllRecords();
+      console.log("FETCHED RECORDS")
+      console.log({ records })
+      if (records) {
+        setLocalRecords(records)
+        const normalizedPositions = await calculatePositionsFromEmbeddings(records, neighborCount[0], minDistance[0])
+        //@ts-ignore
+        const minLastAccesses = normalizedPositions.map(x => x.lastAccessed).reduce((a: any, b: any) => Math.min(a, b))
+        setMinLastAccessed(minLastAccesses)
+        //@ts-ignore
+        const maxLastAccesses = normalizedPositions.map(x => x.lastAccessed).reduce((a: any, b: any) => Math.max(a, b))
+        setMaxLastAccessed(maxLastAccesses)
+        setResults(normalizedPositions);
+      }
+    }
+    console.log('possibly rerunning fetch...')
+    console.log({dataLoaded, results, activeTabCount})
+    if(dataLoaded && results && results.length > 0 && activeTabCount !== results.length) {
+    setStatus('Re running FETCH')
+    // setDataLoaded(false)
+    setLoading(true);
+    runAsync().then(() => {
+      setLoading(false)
+      setStatus('');
+    });
+  }
+  }, [activeTabCount, dataLoaded, results])
+
   //activate when not in dev mode
   useEffect(() => {
     const runAsync = async () => {
       const records = await fetchAllRecords();
+      console.log("FETCHED RECORDS")
+      console.log({ records })
       if (records) {
         setLocalRecords(records)
         const normalizedPositions = await calculatePositionsFromEmbeddings(records, neighborCount[0], minDistance[0])
+        //@ts-ignore
+        const minLastAccesses = normalizedPositions.map(x => x.lastAccessed).reduce((a: any, b: any) => Math.min(a, b))
+        setMinLastAccessed(minLastAccesses)
+        //@ts-ignore
+        const maxLastAccesses = normalizedPositions.map(x => x.lastAccessed).reduce((a: any, b: any) => Math.max(a, b))
+        setMaxLastAccessed(maxLastAccesses)
         setResults(normalizedPositions);
       }
     };
 
     if (dataLoaded) {
       setStatus('Calculating positions')
-      setDataLoaded(false)
+      // setDataLoaded(false)
       setLoading(true);
       runAsync().then(() => {
         setLoading(false)
         setStatus('');
       });
     }
-    console.log('data loaded...')
-    //setResults(stubResults)
-   // if (stubResults !== undefined) setLocalRecords(stubResults)
-    setLoading(false)
+
+    // //FOR LOCAL
+    // console.log('data loaded...')
+    // setResults(stubResultsLarge)
+    // const minLastAccesses = results.map(x => x.lastAccessed).reduce((a, b) => Math.min(a, b))
+    // setMinLastAccessed(minLastAccesses)
+    // const maxLastAccesses = results.map(x => x.lastAccessed).reduce((a, b) => Math.max(a, b))
+    // setMaxLastAccessed(maxLastAccesses)
+    // if (stubResults !== undefined) setLocalRecords(stubResultsLarge)
+    // setLoading(false)
   }, [dataLoaded]);
 
 
   useEffect(() => {
-
     console.log('calling this loop how many times?')
     console.log({ localRecords })
     const runAsync = async () => {
@@ -195,9 +257,11 @@ function App() {
 
     async function fetchDataAndPostMessage() {
       const tabs = await loadTabs();
-      //const tabs = stubTabs;
+      if (tabs.length > 0) { setActiveTabCount(tabs.length) }
+      //FOR LOCAL
+      // const tabs = stubTabs;
       console.log('here...')
-      console.log({tabs})
+      console.log({ tabs })
       if (tabs.length < 1) {
         console.log('No tabs loaded.');
       } else {
@@ -225,7 +289,7 @@ function App() {
     setStatus('Loading tabs...')
     fetchDataAndPostMessage();
 
-    //REMOVE
+    //FOR LOCAL
     // setDataLoaded(true);
 
     tfWorker.onmessage = function (e) {
@@ -280,36 +344,77 @@ function App() {
   }
 
   function fetchAllRecords(): Promise<any> {
-    let request = indexedDB.open(indexdb_name, 1);
+    console.log('Opening IndexedDB:', indexdb_name);
+    let request = indexedDB.open(indexdb_name, db_version);
 
     return new Promise((resolve, reject) => {
       request.onsuccess = function (event) {
+        console.log('IndexedDB opened successfully');
         let db = (event.target as IDBOpenDBRequest)?.result;
-        let transaction = db.transaction([indexdb_store], "readonly");
+        console.log('Starting transaction on store:', indexdb_store);
+        let transaction = db.transaction(indexdb_store, "readonly");
         let objectStore = transaction.objectStore(indexdb_store);
+        console.log('Fetching all records from store:', indexdb_store);
+
         let getAllRequest = objectStore.getAll();
 
         getAllRequest.onsuccess = function (event: any) {
-          if (event.target.result) {
-            let records = event.target.result.map((record: any) => record);
-            resolve(records);
-          } else {
-            resolve([]);
-          }
+          let records = event.target.result.map((record: any) => record);
+          resolve(records);
         };
 
         getAllRequest.onerror = function (event) {
-          let ev = (event.target as IDBOpenDBRequest);
-          reject("Database error: " + ev);
+          console.error('Error fetching records:', event);
+          reject("Database error: " + event);
         };
       };
 
       request.onerror = function (event) {
-        let ev = (event.target as IDBOpenDBRequest);
-        reject("Database error: " + ev);
+        console.error('IndexedDB open error:', event);
+        reject("IndexedDB open error: " + event);
       };
     });
   }
+  // function fetchAllRecords(): Promise<any> {
+  //   console.log('Opening IndexedDB:', indexdb_name);
+  //   let request = indexedDB.open(indexdb_name);
+
+  //   return new Promise((resolve, reject) => {
+  //     request.onsuccess = function (event) {
+  //       console.log('IndexedDB opened successfully');
+  //       let db = (event.target as IDBOpenDBRequest)?.result;
+  //       console.log('Starting transaction on store:', indexdb_store);
+  //       let transaction = db.transaction([indexdb_store], "readonly");
+  //       let objectStore = transaction.objectStore(indexdb_store);
+  //       console.log('Fetching all records from store:', indexdb_store);
+  //       let getAllRequest = objectStore.getAll();
+
+  //       getAllRequest.onsuccess = function (event: any) {
+  //         console.log('getAllRequest success');
+  //         if (event.target.result) {
+  //           let records = event.target.result.map((record: any) => record);
+  //           console.log('Resolved records:', records.length);
+  //           resolve(records);
+  //         } else {
+  //           console.log('No records found');
+  //           resolve([]);
+  //         }
+  //       };
+
+  //       getAllRequest.onerror = function (event) {
+  //         console.log('getAllRequest error');
+  //         let ev = (event.target as IDBOpenDBRequest);
+  //         reject("Database error: " + ev);
+  //       };
+  //     };
+
+  //     request.onerror = function (event) {
+  //       console.log('IndexedDB open error');
+  //       let ev = (event.target as IDBOpenDBRequest);
+  //       reject("Database error: " + ev);
+  //     };
+  //   });
+  // }
 
   async function tryVisualizeEmbeddings(records: any, nNeighbors: number, minDist: number) {
     if (!records) undefined;
@@ -333,7 +438,7 @@ function App() {
     const prng = new Prando(42);
     try {
       //@ts-ignore
-      const embeddings = records.map(x => x.schema.embedding)
+      const embeddings = records.map(x => x.embedding)
       console.log({ records, embeddings })
       const filteredIndeces = embeddings
         .map((x: any, i: number) => x !== undefined ? i : -1)
@@ -351,11 +456,6 @@ function App() {
       return undefined
     }
   }
-  function remap(num: number, inputMin: number, inputMax: number, outputMin: number, outputMax: number) {
-    const epsilon = 0; // small constant to avoid division by zero
-    return ((num - inputMin) / (inputMax - inputMin + epsilon)) * (outputMax - outputMin) + outputMin;
-  }
-
   function normalizePositions(positions: number[][], indeces: number[], records: any) {
 
     const inputMinX = positions.map(x => x[0]).reduce((a, b) => Math.min(a, b))
@@ -373,10 +473,43 @@ function App() {
       const newX = remap(x[0], inputMinX, inputMaxX, outputMinX, outputMaxX)
       const newY = remap(x[1], inputMinY, inputMaxY, outputMinY, outputMaxY)
       const index = indeces[i]
-      return { x: newX, y: newY, schema: records[index].schema }
+      return { x: newX, y: newY, ...records[index] }
     })
     return normalizedPositions;
   }
+
+  //   function separateParticles<T extends { x: number; y: number; radius: number }>(particles: T[]): T[] {
+  //     const kSpringConstant = 0.1; // Spring constant
+  //     let isOverlapping = true;
+  //     const maxIterations = 100;
+  //     let iteration = 0;
+
+  //     while (isOverlapping && iteration < maxIterations) {
+  //         isOverlapping = false;
+  //         for (let i = 0; i < particles.length; i++) {
+  //             for (let j = i + 1; j < particles.length; j++) {
+  //                 const dx = particles[j].x - particles[i].x;
+  //                 const dy = particles[j].y - particles[i].y;
+  //                 const distance = Math.sqrt(dx * dx + dy * dy);
+  //                 const minDistance = particles[i].radius + particles[j].radius;
+  //                 if (distance < minDistance) {
+  //                     isOverlapping = true;
+  //                     const overlap = minDistance - distance;
+  //                     const force = overlap * kSpringConstant;
+  //                     const forceX = (dx / distance) * force;
+  //                     const forceY = (dy / distance) * force;
+  //                     particles[i].x -= forceX;
+  //                     particles[i].y -= forceY;
+  //                     particles[j].x += forceX;
+  //                     particles[j].y += forceY;
+  //                 }
+  //             }
+  //         }
+  //         iteration++;
+  //     }
+
+  //     return particles;
+  // }
 
   async function calculatePositionsFromEmbeddings(records: any, nCount: number, minDist: number) {
     console.log('about to visualize embeddings')
@@ -386,7 +519,8 @@ function App() {
     console.log({ rawPositions })
     if (rawPositions !== undefined) {
       const normalized = normalizePositions(rawPositions.positions, rawPositions.ids, records)
-      console.log('normalized positions')
+      // const particles = separateParticles(normalized.map((x: any) => ({ x: x.x, y: x.y, radius: calculated_radius, ...x })));
+      console.log('normalized particle positions')
       console.log({ normalized })
       return normalized
     }
@@ -424,15 +558,15 @@ function App() {
 
   const checkHover = (point: { x: number, y: number }, results: any[]) => {
     let isHovering: string = '';
-    results.forEach((result, i) => {
+    results?.forEach((result, i) => {
       if (
         isPointInsideRectangle(point, {
           position: { x: result.x, y: result.y },
-          length: DEFAULT_RADIUS,
-          height: DEFAULT_RADIUS,
+          length: calculated_radius,
+          height: calculated_radius,
         })
       ) {
-        isHovering = result.schema.id || '';
+        isHovering = result.id || '';
         return;
       }
     });
@@ -448,11 +582,11 @@ function App() {
     if (idx !== '') {
       if (hovered !== idx) {
         setHovered(idx);
-        const match = results.find((r: any) => r.schema.id === idx);
+        const match = results.find((r: any) => r.id === idx);
         setTooltip({
           visible: true,
-          content: match?.schema.title || '',
-          url: match?.schema.url || '',
+          content: match?.title || '',
+          url: match?.url || '',
           x: match.x,
           y: match.y
         });
@@ -477,8 +611,8 @@ function App() {
     if (loading || loadingDrawing) return;
     const point = { x: e.clientX, y: e.clientY };
 
-    if(hovered){
-    const match = results.find((r: any) => r.schema.id === hovered);
+    if (hovered) {
+      const match = results.find((r: any) => r.id === hovered);
 
     }
   }
@@ -539,7 +673,12 @@ function App() {
               onMouseMove={onMouseMove}
               onMouseDown={onMouseDown}>
               {results && results.map((result: any, key: number) => {
-                return <DrawNode key={result?.schema?.id || key} nodeInfo={result} radius={DEFAULT_RADIUS} hovered={hovered} />
+                return <DrawNode key={result?.id || key}
+                  nodeInfo={result}
+                  radius={calculated_radius}
+                  hovered={hovered}
+                  minLastAccessed={minLastAccessed}
+                  maxLastAccesed={maxLastAccessed} />
               })}
             </Stage>
             {tooltip.visible && (
@@ -552,7 +691,7 @@ function App() {
                 border: '1px solid black',
                 borderRadius: '5px',
                 pointerEvents: 'none', // Prevents the tooltip from interfering with mouse events
-                transform: `translate(-50%, -${(DEFAULT_RADIUS * 2) + 20}px)`, // Adjusts the position to be above the cursor
+                transform: `translate(-50%, -${(calculated_radius * 2) + 20}px)`, // Adjusts the position to be above the cursor
                 whiteSpace: 'nowrap'
               }} className={cn(
                 "z-50 overflow-hidden rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
@@ -577,6 +716,7 @@ function App() {
 
 
             <div className="popover-top-right flex flex-col gap-2 px-8 py-4" style={{ margin: '10px 20px' }}>
+              <div>{results?.length || 0}</div>
               <Menubar className="outline-menu">
                 <MenubarMenu>
                   <MenubarTrigger>Tabs</MenubarTrigger>
@@ -611,8 +751,8 @@ function App() {
                           className={"flex-grow"}
                           min={0.001}
                           defaultValue={minDistance}
-                          step={0.001}
-                          max={0.15}
+                          step={0.1}
+                          max={20.0}
                           onValueChange={(v) => setMinDistance(v)}
                           onBlur={(v) => {
                             setMinDistanceReady(true)
@@ -627,7 +767,7 @@ function App() {
                           min={3}
                           defaultValue={neighborCount}
                           step={1}
-                          max={15}
+                          max={20}
                           onValueChange={(v) => setNeighborCount(v)}
                           onBlur={(v) => {
                             setNeighborCountReady(true)

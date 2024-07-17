@@ -3,11 +3,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import defaultFavicon from './favicon.svg';
 import { Graphics, Sprite, Stage } from '@pixi/react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
+import { remap } from "@/App";
 
-export const DrawNode = ({ radius, nodeInfo, colorMap, hovered }: { radius: number, nodeInfo: any, colorMap?: any, hovered: string }) => {
-    const { x, y, schema } = nodeInfo;
-    const [imageUrl, setImageUrl] = useState(schema?.favIconUrl || defaultFavicon);
-    const [animatedRadius, setAnimatedRadius] = useState(radius);
+export const DrawNode = ({ radius, nodeInfo, colorMap, hovered, minLastAccessed, maxLastAccesed }: { radius: number, nodeInfo: any, colorMap?: any, hovered: string, minLastAccessed: number, maxLastAccesed: number }) => {
+    const { x, y, favIconUrl, id, lastAccessed } = nodeInfo;
+    const remapped = remap(lastAccessed, minLastAccessed, maxLastAccesed, 0.5, 1.0);
+    const [imageUrl, setImageUrl] = useState(favIconUrl || defaultFavicon);
+    const scaledRadius = remapped * radius;
+    const [animatedRadius, setAnimatedRadius] = useState(scaledRadius);
     const draw = useCallback((g: any) => {
         g.clear();
         // const dropShadow = new DropShadowFilter({
@@ -20,7 +23,7 @@ export const DrawNode = ({ radius, nodeInfo, colorMap, hovered }: { radius: numb
         // });
         // g.filters = [dropShadow];
 
-        if(hovered === schema?.id){
+        if(hovered === id){
             g.lineStyle(8, 'white', 1);
         }
         else{
@@ -52,17 +55,17 @@ export const DrawNode = ({ radius, nodeInfo, colorMap, hovered }: { radius: numb
             animationFrameId = requestAnimationFrame(animate);
         };
 
-        if (hovered === schema?.id) {
+        if (hovered === id) {
             animate();
         } else {
-            setAnimatedRadius(radius);
+            setAnimatedRadius(scaledRadius);
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
         }
 
         return () => {
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
         };
-    }, [hovered, radius]);
+    }, [hovered, scaledRadius]);
 
 
     useEffect(() => {
@@ -84,8 +87,8 @@ export const DrawNode = ({ radius, nodeInfo, colorMap, hovered }: { radius: numb
         };
 
         // Call checkImage with the schema's favicon URL or the default image URL
-        checkImage(schema?.favIconUrl || defaultFavicon);
-    }, [schema?.favIconUrl]);
+        checkImage(favIconUrl || defaultFavicon);
+    }, [favIconUrl]);
 
     return (
         <>
@@ -95,8 +98,8 @@ export const DrawNode = ({ radius, nodeInfo, colorMap, hovered }: { radius: numb
                 anchor={0.5}
                 x={x}
                 y={y}
-                width={radius * 1}
-                height={radius * 1}
+                width={scaledRadius * 1}
+                height={scaledRadius * 1}
             />
         </>
     );
