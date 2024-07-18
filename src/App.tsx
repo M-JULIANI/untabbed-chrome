@@ -28,7 +28,7 @@ import { Slider } from './components/ui/slider';
 import { stubResults } from './lib/data/stubResults';
 import { stubResultsLarge } from './lib/data/stubResultsLarge';
 import { stubTabs } from './lib/data/stubTabs';
-import { DrawNode } from './components/DrawNode'
+import { DrawNode, PartialNodeInfo } from './components/DrawNode'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/ui/tooltip';
 import { cn } from './lib/utils';
 
@@ -40,6 +40,7 @@ export function remap(num: number, inputMin: number, inputMax: number, outputMin
 const indexdb_name = "untabbedDB";
 const indexdb_store = "textStore";
 const db_version = 2;
+const tab_delta_allowed = 10;
 const colorMap = {
   "Entertainment": "#FFB399",
   "General": "#FFD1B3",
@@ -78,15 +79,6 @@ async function loadTabs() {
   return tabs;
 }
 
-
-type TabData = {
-  url: string;
-  favIconUrl: string;
-  title: string;
-  lastAccessed: number;
-  text: string;
-}
-
 function App() {
   const [results, setResults] = useState<any>();
   const [previousResult, setPreviousResult] = useState<any>();
@@ -101,6 +93,7 @@ function App() {
   const [loadingDrawing, setLoadingDrawing] = useState(false);
 
   const [isMounted, setIsMounted] = useState(false);
+  const [selectedViewMode, setSelectedViewMode] = useState('Semantic');
   const [stare, setStare] = useState(2); // Step 2
   const [localRecords, setLocalRecords] = useState<any[]>([]);
   const [status, setStatus] = useState('');
@@ -157,16 +150,17 @@ function App() {
       }
     }
     console.log('possibly rerunning fetch...')
-    console.log({dataLoaded, results, activeTabCount})
-    if(dataLoaded && results && results.length > 0 && activeTabCount !== results.length) {
-    setStatus('Re running FETCH')
-    // setDataLoaded(false)
-    setLoading(true);
-    runAsync().then(() => {
-      setLoading(false)
-      setStatus('');
-    });
-  }
+    console.log({ dataLoaded, results, activeTabCount })
+    if (dataLoaded && results && results.length > 0 && Math.abs(results.length - activeTabCount) <= tab_delta_allowed) {
+      setStatus('Fetching.......')
+
+      // setDataLoaded(false)
+      setLoading(true);
+      runAsync().then(() => {
+        setLoading(false)
+        setStatus('');
+      });
+    }
   }, [activeTabCount, dataLoaded, results])
 
   //activate when not in dev mode
@@ -518,29 +512,25 @@ function App() {
     console.log('raw positions')
     console.log({ rawPositions })
     if (rawPositions !== undefined) {
-      const normalized = normalizePositions(rawPositions.positions, rawPositions.ids, records)
-      // const particles = separateParticles(normalized.map((x: any) => ({ x: x.x, y: x.y, radius: calculated_radius, ...x })));
+      const partialNodeInfo: PartialNodeInfo[] = records.map(nodeInfo => ({
+        x: nodeInfo.x,
+        y: nodeInfo.y,
+        originalX: nodeInfo.x,
+        originalY: nodeInfo.y,
+        id: nodeInfo.id,
+        favIconUrl: nodeInfo.favIconUrl,
+        radius: nodeInfo.radius,
+        title: nodeInfo.title,
+        url: nodeInfo.url
+      }));
+      const normalized = normalizePositions(rawPositions.positions, rawPositions.ids, partialNodeInfo)
+      const particles = separateParticles(normalized.map((x: any) => ({ ...x, x: x.x, y: x.y, radius: calculated_radius })));
       console.log('normalized particle positions')
       console.log({ normalized })
       return normalized
     }
     return undefined
   }
-
-  console.log({ results })
-
-  // useEffect(() => {
-  //   console.log('slider value: ' + stare)
-  // }, [stare])
-
-  // if (!isMounted) {
-  //   return null;
-  // }
-
-  useEffect(() => {
-    console.log('min distance: ')
-    console.log(minDistance)
-  }, [minDistance])
 
   console.log('loading: ' + loading)
 
@@ -736,11 +726,19 @@ function App() {
                 <MenubarMenu>
                   <MenubarTrigger>View Mode</MenubarTrigger>
                   <MenubarContent>
-                    <MenubarCheckboxItem>Semantic</MenubarCheckboxItem>
-                    <MenubarCheckboxItem checked>
+                    <MenubarCheckboxItem
+                      onClick={() => setSelectedViewMode('Semantic')}
+                      checked={selectedViewMode === 'Semantic'}>
+                      Semantic
+                    </MenubarCheckboxItem>
+                    <MenubarCheckboxItem
+                      onClick={() => setSelectedViewMode('Concentric')}
+                      checked={selectedViewMode === 'Concentric'}>
                       Concentric
                     </MenubarCheckboxItem>
-                    <MenubarItem inset>
+                    <MenubarItem
+                      onClick={() => setSelectedViewMode('Historical')}
+                      inset={selectedViewMode === 'Historical'}>
                       Historical
                     </MenubarItem>
                     <MenubarSeparator />
