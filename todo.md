@@ -29,6 +29,8 @@ system:
     - tab closed
         - handler
             - -> update db
+- [x] get default display settings working well
+- [x] animate between positions
 - [ ] cron job
     - check number of entries, delete any in excess of X from db every day
 - [ ] canvas

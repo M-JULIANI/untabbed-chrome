@@ -1,8 +1,6 @@
-import { DropShadowFilter } from "@pixi/filter-drop-shadow";
 import { useCallback, useEffect, useRef, useState } from "react";
 import defaultFavicon from './favicon.svg';
 import { Graphics, Sprite, Stage } from '@pixi/react';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
 import { NodeInfo, remap } from "@/App";
 
 export type DrawNodeProps = {
@@ -16,6 +14,8 @@ export type DrawNodeProps = {
 export type PartialNodeInfo = {
     x: NodeInfo['x'];
     y: NodeInfo['y'];
+    originalX: NodeInfo['xOriginal'];
+    originalY: NodeInfo['yOriginal'];
     id: NodeInfo['id'];
     favIconUrl: NodeInfo['favIconUrl'];
     radius: NodeInfo['radius'];
@@ -23,20 +23,13 @@ export type PartialNodeInfo = {
     url: NodeInfo['url'];
 };
 export const DrawNode = ({ nodeInfo, colorMap, hovered }: { nodeInfo: PartialNodeInfo, colorMap?: any, hovered: string }) => {
-    const { x, y, favIconUrl, id, radius } = nodeInfo;
+    const { x, y, favIconUrl, id, radius, originalX, originalY } = nodeInfo;
     const [imageUrl, setImageUrl] = useState(favIconUrl || defaultFavicon);
     const [animatedRadius, setAnimatedRadius] = useState(radius);
+    const [animatedPosition, setAnimatedPosition] = useState({ x: originalX || x, y: originalY || y });
     const draw = useCallback((g: any) => {
         g.clear();
-        // const dropShadow = new DropShadowFilter({
-        //     blur: 3,
-        //     quality: 10,
-        //     distance: 5,
-        //     rotation: 45,
-        //     color: '#000000',
-        //     alpha: 0.5,
-        // });
-        // g.filters = [dropShadow];
+
 
         if(hovered === id){
             g.lineStyle(8, 'white', 1);
@@ -45,17 +38,14 @@ export const DrawNode = ({ nodeInfo, colorMap, hovered }: { nodeInfo: PartialNod
             g.lineStyle(4, 'white', 1);
         }
 
-        // Begin drawing the circle
-        // g.beginFill('#E9E9E9'); // Example color, change as needed
-        // g.drawCircle(x, y, radius);
-        // g.endFill();
         g.beginFill('#E9E9E9');
-        g.drawCircle(x, y, animatedRadius);
+        g.drawCircle(animatedPosition.x, animatedPosition.y, animatedRadius);
         g.endFill();
 
 
-    }, [x, y, hovered, animatedRadius]);
+    }, [animatedPosition, hovered, animatedRadius]);
 
+    //animate on-hover
     useEffect(() => {
         let animationFrameId: number | null = null;
         let growing = true;
@@ -81,6 +71,36 @@ export const DrawNode = ({ nodeInfo, colorMap, hovered }: { nodeInfo: PartialNod
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
         };
     }, [hovered, radius]);
+
+    //animate on-load
+    useEffect(() => {
+        let animationFrameId: number | null = null;
+
+        const animatePosition = () => {
+            setAnimatedPosition(prevPosition => {
+                const deltaX = x - prevPosition.x;
+                const deltaY = y - prevPosition.y;
+                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+                if (distance < 0.5) {
+                    return { x, y }; // Close enough to target
+                } else {
+                    return {
+                        x: prevPosition.x + deltaX * 0.05, // Move 10% closer to the target
+                        y: prevPosition.y + deltaY * 0.05,
+                    };
+                }
+            });
+
+            animationFrameId = requestAnimationFrame(animatePosition);
+        };
+
+        animatePosition();
+
+        return () => {
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        };
+    }, [x, y]);
 
 
     useEffect(() => {
@@ -111,10 +131,10 @@ export const DrawNode = ({ nodeInfo, colorMap, hovered }: { nodeInfo: PartialNod
             <Sprite
                 image={imageUrl}
                 anchor={0.5}
-                x={x}
-                y={y}
-                width={radius * 1}
-                height={radius * 1}
+                x={animatedPosition.x}
+                y={animatedPosition.y}
+                width={radius}
+                height={radius}
             />
         </>
     );

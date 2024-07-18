@@ -56,6 +56,7 @@ export function remap(num: number, inputMin: number, inputMax: number, outputMin
 const indexdb_name = "untabbedDB";
 const indexdb_store = "textStore";
 const db_version = 2;
+const tab_delta_allowed = 10;
 const colorMap = {
   "Entertainment": "#FFB399",
   "General": "#FFD1B3",
@@ -107,6 +108,7 @@ function App() {
   const [loadingDrawing, setLoadingDrawing] = useState(false);
 
   const [isMounted, setIsMounted] = useState(false);
+  const [selectedViewMode, setSelectedViewMode] = useState('Semantic');
   const [stare, setStare] = useState(2); // Step 2
   const [localRecords, setLocalRecords] = useState<NodeInfo[]>([]);
   const [status, setStatus] = useState('');
@@ -171,8 +173,9 @@ function App() {
     }
     console.log('possibly rerunning fetch...')
     console.log({ dataLoaded, results, activeTabCount })
-    if (dataLoaded && results && results.length > 0 && activeTabCount !== results.length) {
-      setStatus('Fetching tabs..')
+    if (dataLoaded && results && results.length > 0 && Math.abs(results.length - activeTabCount) <= tab_delta_allowed) {
+      setStatus('Fetching.......')
+
       // setDataLoaded(false)
       setLoading(true);
       runAsync().then(() => {
@@ -497,14 +500,16 @@ function App() {
     console.log({ rawPositions })
     if (rawPositions !== undefined) {
       const partialNodeInfo: PartialNodeInfo[] = records.map(nodeInfo => ({
-      x: nodeInfo.x,
-      y: nodeInfo.y,
-      id: nodeInfo.id,
-      favIconUrl: nodeInfo.favIconUrl,
-      radius: nodeInfo.radius,
-      title: nodeInfo.title,
-      url: nodeInfo.url
-    }));
+        x: nodeInfo.x,
+        y: nodeInfo.y,
+        originalX: nodeInfo.x,
+        originalY: nodeInfo.y,
+        id: nodeInfo.id,
+        favIconUrl: nodeInfo.favIconUrl,
+        radius: nodeInfo.radius,
+        title: nodeInfo.title,
+        url: nodeInfo.url
+      }));
       const normalized = normalizePositions(rawPositions.positions, rawPositions.ids, partialNodeInfo)
       const particles = separateParticles(normalized.map((x: any) => ({ ...x, x: x.x, y: x.y, radius: calculated_radius })));
       console.log('normalized particle positions')
@@ -717,11 +722,19 @@ function App() {
                 <MenubarMenu>
                   <MenubarTrigger>View Mode</MenubarTrigger>
                   <MenubarContent>
-                    <MenubarCheckboxItem>Semantic</MenubarCheckboxItem>
-                    <MenubarCheckboxItem checked>
+                    <MenubarCheckboxItem
+                      onClick={() => setSelectedViewMode('Semantic')}
+                      checked={selectedViewMode === 'Semantic'}>
+                      Semantic
+                    </MenubarCheckboxItem>
+                    <MenubarCheckboxItem
+                      onClick={() => setSelectedViewMode('Concentric')}
+                      checked={selectedViewMode === 'Concentric'}>
                       Concentric
                     </MenubarCheckboxItem>
-                    <MenubarItem inset>
+                    <MenubarItem
+                      onClick={() => setSelectedViewMode('Historical')}
+                      inset={selectedViewMode === 'Historical'}>
                       Historical
                     </MenubarItem>
                     <MenubarSeparator />
