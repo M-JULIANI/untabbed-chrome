@@ -28,9 +28,25 @@ import { Slider } from './components/ui/slider';
 import { stubResults } from './lib/data/stubResults';
 import { stubResultsLarge } from './lib/data/stubResultsLarge';
 import { stubTabs } from './lib/data/stubTabs';
-import { DrawNode } from './components/DrawNode'
+import { DrawNode, PartialNodeInfo } from './components/DrawNode'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/ui/tooltip';
 import { cn } from './lib/utils';
+
+export type NodeInfo = {
+  id: string;
+  title: string;
+  url: string;
+  favIconUrl: string | null;
+  lastAccessed: number | null;
+  text: string;
+  embedding: number[][];
+  x: number;
+  y: number;
+  radius: number;
+  fullTextProcessed: boolean;
+  xOriginal?: number;
+  yOriginal?: number;
+}
 
 export function remap(num: number, inputMin: number, inputMax: number, outputMin: number, outputMax: number) {
   const epsilon = 0; // small constant to avoid division by zero
@@ -78,18 +94,8 @@ async function loadTabs() {
   return tabs;
 }
 
-
-type TabData = {
-  url: string;
-  favIconUrl: string;
-  title: string;
-  lastAccessed: number;
-  text: string;
-}
-
 function App() {
-  const [results, setResults] = useState<any>();
-  const [previousResult, setPreviousResult] = useState<any>();
+  const [results, setResults] = useState<PartialNodeInfo[]>();
   const [minLastAccessed, setMinLastAccessed] = useState(0);
   const [maxLastAccessed, setMaxLastAccessed] = useState(100);
   const [dimensions, setDimensions] = useState({
@@ -102,7 +108,7 @@ function App() {
 
   const [isMounted, setIsMounted] = useState(false);
   const [stare, setStare] = useState(2); // Step 2
-  const [localRecords, setLocalRecords] = useState<any[]>([]);
+  const [localRecords, setLocalRecords] = useState<NodeInfo[]>([]);
   const [status, setStatus] = useState('');
   const [neighborCount, setNeighborCount] = useState([5]);
   const [neighborCountReady, setNeighborCountReady] = useState(true);
@@ -146,27 +152,34 @@ function App() {
       console.log({ records })
       if (records) {
         setLocalRecords(records)
-        const normalizedPositions = await calculatePositionsFromEmbeddings(records, neighborCount[0], minDistance[0])
         //@ts-ignore
-        const minLastAccesses = normalizedPositions.map(x => x.lastAccessed).reduce((a: any, b: any) => Math.min(a, b))
-        setMinLastAccessed(minLastAccesses)
+        const minLastAccesses = records.map(x => x.lastAccessed).reduce((a: any, b: any) => Math.min(a, b))
+        if (minLastAccesses) setMinLastAccessed(minLastAccesses)
         //@ts-ignore
-        const maxLastAccesses = normalizedPositions.map(x => x.lastAccessed).reduce((a: any, b: any) => Math.max(a, b))
-        setMaxLastAccessed(maxLastAccesses)
+        const maxLastAccesses = records?.map(x => x.lastAccessed).reduce((a: any, b: any) => Math.max(a, b))
+        if (maxLastAccesses) setMaxLastAccessed(maxLastAccesses)
+        const particlesCopy = records.map((x: NodeInfo) => {
+          const remapped = remap(x?.lastAccessed || 0, minLastAccessed, maxLastAccessed, 0.5, 1.0);
+          const newRad = remapped * calculated_radius
+          console.log({ newRad, calculated_radius, minLastAccesses, maxLastAccesses })
+          return { ...x, xOriginal: x.x, yOriginal: x.y, radius: newRad }
+        });
+        const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0])
+
         setResults(normalizedPositions);
       }
     }
     console.log('possibly rerunning fetch...')
-    console.log({dataLoaded, results, activeTabCount})
-    if(dataLoaded && results && results.length > 0 && activeTabCount !== results.length) {
-    setStatus('Re running FETCH')
-    // setDataLoaded(false)
-    setLoading(true);
-    runAsync().then(() => {
-      setLoading(false)
-      setStatus('');
-    });
-  }
+    console.log({ dataLoaded, results, activeTabCount })
+    if (dataLoaded && results && results.length > 0 && activeTabCount !== results.length) {
+      setStatus('Fetching tabs..')
+      // setDataLoaded(false)
+      setLoading(true);
+      runAsync().then(() => {
+        setLoading(false)
+        setStatus('');
+      });
+    }
   }, [activeTabCount, dataLoaded, results])
 
   //activate when not in dev mode
@@ -177,19 +190,23 @@ function App() {
       console.log({ records })
       if (records) {
         setLocalRecords(records)
-        const normalizedPositions = await calculatePositionsFromEmbeddings(records, neighborCount[0], minDistance[0])
         //@ts-ignore
-        const minLastAccesses = normalizedPositions.map(x => x.lastAccessed).reduce((a: any, b: any) => Math.min(a, b))
-        setMinLastAccessed(minLastAccesses)
+        const minLastAccesses = records.map(x => x.lastAccessed).reduce((a: any, b: any) => Math.min(a, b))
+        if (minLastAccesses) setMinLastAccessed(minLastAccesses)
         //@ts-ignore
-        const maxLastAccesses = normalizedPositions.map(x => x.lastAccessed).reduce((a: any, b: any) => Math.max(a, b))
-        setMaxLastAccessed(maxLastAccesses)
+        const maxLastAccesses = records?.map(x => x.lastAccessed).reduce((a: any, b: any) => Math.max(a, b))
+        if (maxLastAccesses) setMaxLastAccessed(maxLastAccesses)
+        const particlesCopy = records.map((x: NodeInfo) => {
+          const remapped = remap(x?.lastAccessed || 0, minLastAccessed, maxLastAccessed, 0.5, 1.0);
+          return { ...x, xOriginal: x.x, yOriginal: x.y, radius: remapped * calculated_radius }
+        });
+        const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0])
         setResults(normalizedPositions);
       }
     };
 
     if (dataLoaded) {
-      setStatus('Calculating positions')
+      setStatus('Positions......')
       // setDataLoaded(false)
       setLoading(true);
       runAsync().then(() => {
@@ -296,7 +313,7 @@ function App() {
       const { result } = e.data;
       console.log('Result from TensorFlow.js computation:', result);
       setDataLoaded(true);
-      setStatus('Tabs loaded... ')
+      setStatus('Tabs loaded....')
     };
 
     return () => tfWorker.terminate(); // Clean up
@@ -375,46 +392,6 @@ function App() {
       };
     });
   }
-  // function fetchAllRecords(): Promise<any> {
-  //   console.log('Opening IndexedDB:', indexdb_name);
-  //   let request = indexedDB.open(indexdb_name);
-
-  //   return new Promise((resolve, reject) => {
-  //     request.onsuccess = function (event) {
-  //       console.log('IndexedDB opened successfully');
-  //       let db = (event.target as IDBOpenDBRequest)?.result;
-  //       console.log('Starting transaction on store:', indexdb_store);
-  //       let transaction = db.transaction([indexdb_store], "readonly");
-  //       let objectStore = transaction.objectStore(indexdb_store);
-  //       console.log('Fetching all records from store:', indexdb_store);
-  //       let getAllRequest = objectStore.getAll();
-
-  //       getAllRequest.onsuccess = function (event: any) {
-  //         console.log('getAllRequest success');
-  //         if (event.target.result) {
-  //           let records = event.target.result.map((record: any) => record);
-  //           console.log('Resolved records:', records.length);
-  //           resolve(records);
-  //         } else {
-  //           console.log('No records found');
-  //           resolve([]);
-  //         }
-  //       };
-
-  //       getAllRequest.onerror = function (event) {
-  //         console.log('getAllRequest error');
-  //         let ev = (event.target as IDBOpenDBRequest);
-  //         reject("Database error: " + ev);
-  //       };
-  //     };
-
-  //     request.onerror = function (event) {
-  //       console.log('IndexedDB open error');
-  //       let ev = (event.target as IDBOpenDBRequest);
-  //       reject("Database error: " + ev);
-  //     };
-  //   });
-  // }
 
   async function tryVisualizeEmbeddings(records: any, nNeighbors: number, minDist: number) {
     if (!records) undefined;
@@ -446,6 +423,8 @@ function App() {
 
       const nonNullEmbeddings = filteredIndeces.map((x: any, i: number) => embeddings[i])
       console.log({ nonNullEmbeddings })
+      //const nonNullEmbeddings = filteredIndeces.map((x: any, i: number) => embeddings[i][0]); // Assuming extra array wrapping
+      console.log({ nonNullEmbeddings })
       const umap = new UMAP({ nNeighbors, random: () => prng.next(), minDist, nComponents: 2 });
       const positions = await umap.fitAsync(nonNullEmbeddings);
       return { positions, ids: filteredIndeces };
@@ -456,14 +435,13 @@ function App() {
       return undefined
     }
   }
-  function normalizePositions(positions: number[][], indeces: number[], records: any) {
+  function normalizePositions(positions: number[][], indeces: number[], records: PartialNodeInfo[]) {
 
     const inputMinX = positions.map(x => x[0]).reduce((a, b) => Math.min(a, b))
     const inputMaxX = positions.map(x => x[0]).reduce((a, b) => Math.max(a, b))
     const inputMinY = positions.map(x => x[1]).reduce((a, b) => Math.min(a, b))
     const inputMaxY = positions.map(x => x[1]).reduce((a, b) => Math.max(a, b))
 
-    console.log({ inputMaxX, inputMinX, inputMaxY, inputMinY })
     const outputMinX = SIDE_GUTTER
     const outputMaxX = window.innerWidth - SIDE_GUTTER
     const outputMinY = SIDE_GUTTER
@@ -473,69 +451,71 @@ function App() {
       const newX = remap(x[0], inputMinX, inputMaxX, outputMinX, outputMaxX)
       const newY = remap(x[1], inputMinY, inputMaxY, outputMinY, outputMaxY)
       const index = indeces[i]
-      return { x: newX, y: newY, ...records[index] }
+      return { ...records[index], x: newX, y: newY }
     })
     return normalizedPositions;
   }
 
-  //   function separateParticles<T extends { x: number; y: number; radius: number }>(particles: T[]): T[] {
-  //     const kSpringConstant = 0.1; // Spring constant
-  //     let isOverlapping = true;
-  //     const maxIterations = 100;
-  //     let iteration = 0;
+  function separateParticles(particles: PartialNodeInfo[]) {
+    const kSpringConstant = 0.1; // Spring constant
+    let isOverlapping = true;
+    const maxIterations = 100;
+    let iteration = 0;
 
-  //     while (isOverlapping && iteration < maxIterations) {
-  //         isOverlapping = false;
-  //         for (let i = 0; i < particles.length; i++) {
-  //             for (let j = i + 1; j < particles.length; j++) {
-  //                 const dx = particles[j].x - particles[i].x;
-  //                 const dy = particles[j].y - particles[i].y;
-  //                 const distance = Math.sqrt(dx * dx + dy * dy);
-  //                 const minDistance = particles[i].radius + particles[j].radius;
-  //                 if (distance < minDistance) {
-  //                     isOverlapping = true;
-  //                     const overlap = minDistance - distance;
-  //                     const force = overlap * kSpringConstant;
-  //                     const forceX = (dx / distance) * force;
-  //                     const forceY = (dy / distance) * force;
-  //                     particles[i].x -= forceX;
-  //                     particles[i].y -= forceY;
-  //                     particles[j].x += forceX;
-  //                     particles[j].y += forceY;
-  //                 }
-  //             }
-  //         }
-  //         iteration++;
-  //     }
+    while (isOverlapping && iteration < maxIterations) {
+      isOverlapping = false;
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[j].x - particles[i].x;
+          const dy = particles[j].y - particles[i].y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const minDistance = particles[i].radius + particles[j].radius;
+          if (distance < minDistance) {
+            isOverlapping = true;
+            const overlap = minDistance - distance;
+            const force = overlap * kSpringConstant;
+            const forceX = (dx / distance) * force;
+            const forceY = (dy / distance) * force;
+            particles[i].x -= forceX;
+            particles[i].y -= forceY;
+            particles[j].x += forceX;
+            particles[j].y += forceY;
+          }
+        }
+      }
+      iteration++;
+    }
 
-  //     return particles;
-  // }
+    return particles;
+  }
 
-  async function calculatePositionsFromEmbeddings(records: any, nCount: number, minDist: number) {
+  async function calculatePositionsFromEmbeddings(records: NodeInfo[], nCount: number, minDist: number) {
     console.log('about to visualize embeddings')
     console.log({ records })
     const rawPositions = await tryVisualizeEmbeddings(records, nCount, minDist)
     console.log('raw positions')
     console.log({ rawPositions })
     if (rawPositions !== undefined) {
-      const normalized = normalizePositions(rawPositions.positions, rawPositions.ids, records)
-      // const particles = separateParticles(normalized.map((x: any) => ({ x: x.x, y: x.y, radius: calculated_radius, ...x })));
+      const partialNodeInfo: PartialNodeInfo[] = records.map(nodeInfo => ({
+      x: nodeInfo.x,
+      y: nodeInfo.y,
+      id: nodeInfo.id,
+      favIconUrl: nodeInfo.favIconUrl,
+      radius: nodeInfo.radius,
+      title: nodeInfo.title,
+      url: nodeInfo.url
+    }));
+      const normalized = normalizePositions(rawPositions.positions, rawPositions.ids, partialNodeInfo)
+      const particles = separateParticles(normalized.map((x: any) => ({ ...x, x: x.x, y: x.y, radius: calculated_radius })));
       console.log('normalized particle positions')
-      console.log({ normalized })
-      return normalized
+      console.log({ particles })
+      return particles
     }
     return undefined
   }
 
   console.log({ results })
 
-  // useEffect(() => {
-  //   console.log('slider value: ' + stare)
-  // }, [stare])
-
-  // if (!isMounted) {
-  //   return null;
-  // }
 
   useEffect(() => {
     console.log('min distance: ')
@@ -556,14 +536,14 @@ function App() {
     );
   }
 
-  const checkHover = (point: { x: number, y: number }, results: any[]) => {
+  const checkHover = (point: { x: number, y: number }, results: PartialNodeInfo[]) => {
     let isHovering: string = '';
-    results?.forEach((result, i) => {
+    results?.forEach((result) => {
       if (
         isPointInsideRectangle(point, {
           position: { x: result.x, y: result.y },
-          length: calculated_radius,
-          height: calculated_radius,
+          length: result?.radius || 1,
+          height: result?.radius || 1,
         })
       ) {
         isHovering = result.id || '';
@@ -578,30 +558,34 @@ function App() {
     const point = { x: e.clientX, y: e.clientY };
 
     // check if hovering polygon
-    const idx = checkHover(point, results);
-    if (idx !== '') {
-      if (hovered !== idx) {
-        setHovered(idx);
-        const match = results.find((r: any) => r.id === idx);
-        setTooltip({
-          visible: true,
-          content: match?.title || '',
-          url: match?.url || '',
-          x: match.x,
-          y: match.y
-        });
+    if (results) {
+      const idx = checkHover(point, results);
+      if (idx !== '') {
+        if (hovered !== idx) {
+          setHovered(idx);
+          const match = results.find((r: any) => r.id === idx);
+          if (match) {
+            setTooltip({
+              visible: true,
+              content: match?.title || '',
+              url: match?.url || '',
+              x: match.x,
+              y: match.y
+            });
+          }
+        }
       }
-    }
-    else {
-      if (hovered !== '') {
-        setHovered('');
-        setTooltip({
-          visible: false,
-          content: '',
-          url: '',
-          x: e.clientX,
-          y: e.clientY
-        });
+      else {
+        if (hovered !== '') {
+          setHovered('');
+          setTooltip({
+            visible: false,
+            content: '',
+            url: '',
+            x: e.clientX,
+            y: e.clientY
+          });
+        }
       }
     }
   }
@@ -611,10 +595,10 @@ function App() {
     if (loading || loadingDrawing) return;
     const point = { x: e.clientX, y: e.clientY };
 
-    if (hovered) {
-      const match = results.find((r: any) => r.id === hovered);
+    // if (hovered) {
+    //   const match = results.find((r: any) => r.id === hovered);
 
-    }
+    // }
   }
 
   useEffect(() => {
@@ -669,16 +653,13 @@ function App() {
           </div>) : null}
           <div style={{ position: 'relative' }}>
             <Stage width={dimensions.width} height={dimensions.height}
-              options={{ background: '#6B6B6B' }}
+              options={{ background: '#202025' }}
               onMouseMove={onMouseMove}
               onMouseDown={onMouseDown}>
-              {results && results.map((result: any, key: number) => {
+              {results && results.map((result: PartialNodeInfo, key: number) => {
                 return <DrawNode key={result?.id || key}
                   nodeInfo={result}
-                  radius={calculated_radius}
-                  hovered={hovered}
-                  minLastAccessed={minLastAccessed}
-                  maxLastAccesed={maxLastAccessed} />
+                  hovered={hovered} />
               })}
             </Stage>
             {tooltip.visible && (
@@ -751,8 +732,8 @@ function App() {
                           className={"flex-grow"}
                           min={0.001}
                           defaultValue={minDistance}
-                          step={0.1}
-                          max={20.0}
+                          step={0.001}
+                          max={1.0}
                           onValueChange={(v) => setMinDistance(v)}
                           onBlur={(v) => {
                             setMinDistanceReady(true)

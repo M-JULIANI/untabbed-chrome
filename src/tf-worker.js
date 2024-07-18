@@ -119,13 +119,15 @@ function storeEmbedding(url, embedding, id, title, lastAccessed, favIconUrl) {
             if (!db) return
             let transaction = db.transaction([indexdb_store], "readwrite");
             let objectStore = transaction.objectStore(indexdb_store);
-            let request = objectStore.add({ url: url || '', id, title, embedding, lastAccessed: lastAccessed|| 0, favIconUrl: favIconUrl || '' });
+
+            let request = objectStore.add({ url: url || '', id, title, embedding, lastAccessed: lastAccessed || 0, favIconUrl: favIconUrl || '', fullTextProcessed: false });
 
             request.onsuccess = function (event) {
                 console.log("Embedding stored successfully!");
             };
 
             request.onerror = function (event) {
+                console.log({ url: url || '', id, title, embedding, lastAccessed: lastAccessed || 0, favIconUrl: favIconUrl || '' })
                 throw new Error("Error storing embedding: " + event.target.errorCode);
             };
         } catch (error) {
@@ -185,11 +187,11 @@ async function runEmbeddingPipeline(data) {
                 //   return undefined
                 // }
 
-               // console.log(`website title:  ${title}`);
+                // console.log(`website title:  ${title}`);
                 const validModel = tf_model !== undefined;
-               // console.log('valid tf_model? ' + validModel)
+                // console.log('valid tf_model? ' + validModel)
                 const embedding = tf_model ? await createEmbedding(title) : null;
-               // console.log('attempting to store...')
+                // console.log('attempting to store...')
                 storeEmbedding(url, embedding, id, title, lastAccessed, favIconUrl)
                 //console.log(`embedding: \n\n ${embedding}`);
                 return embedding
@@ -232,6 +234,7 @@ async function makeObjectStore(db, dbStore) {
             objectStore.createIndex("title", "title", { unique: false });
             objectStore.createIndex("lastAccessed", "lastAccessed", { unique: false });
             objectStore.createIndex("favIconUrl", "favIconUrl", { unique: false });
+            objectStore.createIndex("fullTextProcessed", "fullTextProcessed", { unique: false });
             resolve(objectStore);
         } catch (error) {
             console.log('error creating object store with creator method');
@@ -256,7 +259,6 @@ async function initializeDatabase() {
 
             request.onsuccess = function (event) {
                 resolve(event.target.result);
-                db.close();
             };
 
             request.onerror = function (event) {
@@ -264,10 +266,10 @@ async function initializeDatabase() {
             };
         });
 
-            // Ensure the object store exists before proceeding
-            if (!db.objectStoreNames.contains(indexdb_store)) {
-                throw new Error("Object store does not existttttttt");
-            }
+        // Ensure the object store exists before proceeding
+        if (!db.objectStoreNames.contains(indexdb_store)) {
+            throw new Error("Object store does not existttttttt");
+        }
 
         const transaction = db.transaction(indexdb_store, 'readonly');
         await new Promise((resolve, reject) => {
