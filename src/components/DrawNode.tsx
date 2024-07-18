@@ -3,14 +3,29 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import defaultFavicon from './favicon.svg';
 import { Graphics, Sprite, Stage } from '@pixi/react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./ui/tooltip";
-import { remap } from "@/App";
+import { NodeInfo, remap } from "@/App";
 
-export const DrawNode = ({ radius, nodeInfo, colorMap, hovered, minLastAccessed, maxLastAccesed }: { radius: number, nodeInfo: any, colorMap?: any, hovered: string, minLastAccessed: number, maxLastAccesed: number }) => {
-    const { x, y, favIconUrl, id, lastAccessed } = nodeInfo;
-    const remapped = remap(lastAccessed, minLastAccessed, maxLastAccesed, 0.5, 1.0);
+export type DrawNodeProps = {
+    partialNodeInfo: PartialNodeInfo;
+    hovered: string;
+    colorMap?: any;
+    minLastAccessed: number;
+    maxLastAccessed: number;
+};
+
+export type PartialNodeInfo = {
+    x: NodeInfo['x'];
+    y: NodeInfo['y'];
+    id: NodeInfo['id'];
+    favIconUrl: NodeInfo['favIconUrl'];
+    radius: NodeInfo['radius'];
+    title: NodeInfo['title'];
+    url: NodeInfo['url'];
+};
+export const DrawNode = ({ nodeInfo, colorMap, hovered }: { nodeInfo: PartialNodeInfo, colorMap?: any, hovered: string }) => {
+    const { x, y, favIconUrl, id, radius } = nodeInfo;
     const [imageUrl, setImageUrl] = useState(favIconUrl || defaultFavicon);
-    const scaledRadius = remapped * radius;
-    const [animatedRadius, setAnimatedRadius] = useState(scaledRadius);
+    const [animatedRadius, setAnimatedRadius] = useState(radius);
     const draw = useCallback((g: any) => {
         g.clear();
         // const dropShadow = new DropShadowFilter({
@@ -58,14 +73,14 @@ export const DrawNode = ({ radius, nodeInfo, colorMap, hovered, minLastAccessed,
         if (hovered === id) {
             animate();
         } else {
-            setAnimatedRadius(scaledRadius);
+            setAnimatedRadius(radius);
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
         }
 
         return () => {
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
         };
-    }, [hovered, scaledRadius]);
+    }, [hovered, radius]);
 
 
     useEffect(() => {
@@ -98,8 +113,8 @@ export const DrawNode = ({ radius, nodeInfo, colorMap, hovered, minLastAccessed,
                 anchor={0.5}
                 x={x}
                 y={y}
-                width={scaledRadius * 1}
-                height={scaledRadius * 1}
+                width={radius * 1}
+                height={radius * 1}
             />
         </>
     );
