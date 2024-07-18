@@ -63,14 +63,14 @@ export const DrawNode = ({ nodeInfo, colorMap, hovered }: { nodeInfo: PartialNod
         if (hovered === id) {
             animate();
         } else {
-            setAnimatedRadius(scaledRadius);
+            setAnimatedRadius(radius);
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
         }
 
         return () => {
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
         };
-    }, [hovered, scaledRadius]);
+    }, [hovered, radius]);
 
     //animate on-load
     useEffect(() => {
