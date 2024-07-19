@@ -73,7 +73,7 @@ const colorMap = {
 };
 
 const SIDE_GUTTER = 150
-const DEFAULT_RADIUS = 5
+const DEFAULT_RADIUS = 250
 const turndownService = new TurndownService();
 
 async function loadTabs() {
@@ -115,20 +115,23 @@ function App() {
   const [neighborCount, setNeighborCount] = useState([5]);
   const [neighborCountReady, setNeighborCountReady] = useState(true);
   const [minDistance, setMinDistance] = useState([0.002]);
+  const [radiusDivisor, setRadiusDivisor] = useState([15]);
   const [minDistanceReady, setMinDistanceReady] = useState(true);
+  const [radiusDivisorReady, setRadiusDivisorReady] = useState(true);
   const [resizeFlag, setResizeFlag] = useState(false);
   const ref = useRef(null);
   const [bounds, setBounds] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [hovered, setHovered] = useState<string>('');
   const [tooltip, setTooltip] = useState({ visible: false, content: '', url: '', x: 0, y: 0 });
-  const [calculated_radius, setCalculatedRadius] = useState(100 / DEFAULT_RADIUS);
+  const [calculated_radius, setCalculatedRadius] = useState(DEFAULT_RADIUS / (radiusDivisor[0] || 10));
   const [activeTabCount, setActiveTabCount] = useState(0);
+
 
   useEffect(() => {
     if (results) {
-      setCalculatedRadius(results.length / DEFAULT_RADIUS)
+      setCalculatedRadius(DEFAULT_RADIUS / (radiusDivisor[0] || 10))
     }
-  }, [results])
+  }, [results, radiusDivisor])
 
   useEffect(() => {
     const updateBounds = () => {
@@ -173,7 +176,7 @@ function App() {
     }
     console.log('possibly rerunning fetch...')
     console.log({ dataLoaded, results, activeTabCount })
-    if (dataLoaded && results && results.length > 0 && Math.abs(results.length - activeTabCount) <= tab_delta_allowed) {
+    if (dataLoaded && results && results.length > 0 && Math.abs(results.length - activeTabCount) > tab_delta_allowed) {
       setStatus('Fetching.......')
 
       // setDataLoaded(false)
@@ -258,6 +261,15 @@ function App() {
         setLoading(false)
       });
     }
+    if (localRecords.length > 0 && radiusDivisorReady) {
+      //reset
+      setRadiusDivisorReady(false);
+      setLoadingDrawing(true)
+      runAsync().then(() => {
+        setLoadingDrawing(false)
+        setLoading(false)
+      });
+    }
     if (localRecords.length > 0 && resizeFlag) {
       setResizeFlag(false)
       setLoadingDrawing(true)
@@ -267,7 +279,7 @@ function App() {
       });
     }
 
-  }, [neighborCountReady, minDistanceReady, resizeFlag, localRecords])
+  }, [neighborCountReady, minDistanceReady, radiusDivisorReady, resizeFlag, localRecords])
 
 
 
@@ -677,7 +689,7 @@ function App() {
                 border: '1px solid black',
                 borderRadius: '5px',
                 pointerEvents: 'none', // Prevents the tooltip from interfering with mouse events
-                transform: `translate(-50%, -${(calculated_radius * 2) + 20}px)`, // Adjusts the position to be above the cursor
+                transform: `translate(-50%, -${(calculated_radius) + 20}px)`, // Adjusts the position to be above the cursor
                 whiteSpace: 'nowrap'
               }} className={cn(
                 "z-50 overflow-hidden rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
@@ -702,10 +714,12 @@ function App() {
 
 
             <div className="popover-top-right flex flex-col gap-2 px-8 py-4" style={{ margin: '10px 20px' }}>
-              <div>{results?.length || 0}</div>
-              <Menubar className="outline-menu">
+              <div className="w-full flex justify-end p-2">
+                <div className="font-bold" style={{ color: '#E9E9E9'}}>{results?.length || 0} tabs!!!</div>
+              </div>
+              <Menubar className="outline-menu" style={{ outlineColor: '#E9E9E9'}}>
                 <MenubarMenu>
-                  <MenubarTrigger>Tabs</MenubarTrigger>
+                  <MenubarTrigger style={{ color: '#E9E9E9'}}>Tabs</MenubarTrigger>
                   <MenubarContent>
                     <MenubarItem>
                       Collapse All <MenubarShortcut>⌘C</MenubarShortcut>
@@ -720,7 +734,7 @@ function App() {
                   </MenubarContent>
                 </MenubarMenu>
                 <MenubarMenu>
-                  <MenubarTrigger>View Mode</MenubarTrigger>
+                  <MenubarTrigger style={{ color: '#E9E9E9'}}>View Mode</MenubarTrigger>
                   <MenubarContent>
                     <MenubarCheckboxItem
                       onClick={() => setSelectedViewMode('Semantic')}
@@ -732,11 +746,11 @@ function App() {
                       checked={selectedViewMode === 'Concentric'}>
                       Concentric
                     </MenubarCheckboxItem>
-                    <MenubarItem
+                    <MenubarCheckboxItem
                       onClick={() => setSelectedViewMode('Historical')}
-                      inset={selectedViewMode === 'Historical'}>
+                      checked={selectedViewMode === 'Historical'}>
                       Historical
-                    </MenubarItem>
+                    </MenubarCheckboxItem>
                     <MenubarSeparator />
                     <div className="flex flex-col justify-between gap-6 my-4 ml-8">
                       <div className="grid grid-cols-2 items-center gap-4 mr-8">
@@ -768,11 +782,25 @@ function App() {
                           }}
                         />
                       </div>
+                      <div className="grid grid-cols-2 items-center gap-4 mr-8">
+                        <Label htmlFor="width">Radius Divisor</Label>
+                        <Slider
+                          className={"flex-grow"}
+                          min={10}
+                          defaultValue={radiusDivisor}
+                          step={1}
+                          max={20}
+                          onValueChange={(v) => setRadiusDivisor(v)}
+                          onBlur={(v) => {
+                            setRadiusDivisorReady(true)
+                          }}
+                        />
+                      </div>
                     </div>
                   </MenubarContent>
                 </MenubarMenu>
                 <MenubarMenu>
-                  <MenubarTrigger>Settings</MenubarTrigger>
+                  <MenubarTrigger style={{ color: '#E9E9E9'}}>Settings</MenubarTrigger>
                   <MenubarContent>
                     <MenubarRadioGroup value="benoit">
                       <MenubarRadioItem value="andy">Andy</MenubarRadioItem>
@@ -786,7 +814,7 @@ function App() {
                   </MenubarContent>
                 </MenubarMenu>
                 <MenubarMenu>
-                  <MenubarTrigger>Analytics</MenubarTrigger>
+                  <MenubarTrigger style={{ color: '#E9E9E9'}}>Analytics</MenubarTrigger>
                   <MenubarContent>
                     <MenubarRadioGroup value="benoit">
                       <MenubarRadioItem value="andy">Andy</MenubarRadioItem>
