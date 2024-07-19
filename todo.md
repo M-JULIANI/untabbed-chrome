@@ -47,9 +47,9 @@ system:
     - collapse all windows
     - display all windows
 - [ ] views:
-    - semantics 2d
-    - concentric 1d
-    - chronological 1d
+    - [x] semantics 2d
+    - [ ] concentric 1d
+    - [ ] chronological 1d
 
 - [ ] considerations
     - deduplication
