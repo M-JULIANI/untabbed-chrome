@@ -6,7 +6,8 @@
         "storage",
         "activeTab",
         "scripting",
-        "tabs"
+        "tabs",
+        "sidePanel"
     ],
     "action": {
         "default_title": "Untabbed-Chrome"
@@ -23,5 +24,9 @@
     },
     "chrome_url_overrides": {
         "newtab": "index.html"
+    },
+    "side_panel": {
+        "default_path": "index.html",
+        "default_title": "Untabbed-Chrome"
     }
 }
