@@ -31,21 +31,23 @@ system:
             - -> update db
 - [x] get default display settings working well
 - [x] animate between positions
+- [ ] make groups, of similar tabs
 - [ ] cron job
     - check number of entries, delete any in excess of X from db every day
 - [ ] canvas
     - [x] onHover
         -[x]  title & url
-    - [ ] onClick
-        - goto?
+    - [x] onClick
+        - [x] goto tab/window?
+        - [ ] open untabbed side panel on the right?
     - [ ] display:
         - [ ] radius by visits/last accessed
     - [ ] color by? 
         - [ ] category?
         - [ ] random gradient?
 - [ ] settings
-    - collapse all windows
-    - display all windows
+    - [ ] collapse all windows
+    - [ ] display all windows
 - [ ] views:
     - [x] semantics 2d
     - [ ] concentric 1d

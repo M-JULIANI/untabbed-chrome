@@ -12,11 +12,11 @@ export type DrawNodeProps = {
 };
 
 export type PartialNodeInfo = {
+    id: NodeInfo['id'];
     x: NodeInfo['x'];
     y: NodeInfo['y'];
     originalX: NodeInfo['xOriginal'];
     originalY: NodeInfo['yOriginal'];
-    id: NodeInfo['id'];
     favIconUrl: NodeInfo['favIconUrl'];
     radius: NodeInfo['radius'];
     title: NodeInfo['title'];

@@ -48,6 +48,12 @@ export type NodeInfo = {
   yOriginal?: number;
 }
 
+enum ViewMode {
+  Semantic = 'Semantic',
+  Concentric = 'Concentric',
+  Historical = 'Historical'
+}
+
 export function remap(num: number, inputMin: number, inputMax: number, outputMin: number, outputMax: number) {
   const epsilon = 0; // small constant to avoid division by zero
   return ((num - inputMin) / (inputMax - inputMin + epsilon)) * (outputMax - outputMin) + outputMin;
@@ -108,7 +114,8 @@ function App() {
   const [loadingDrawing, setLoadingDrawing] = useState(false);
 
   const [isMounted, setIsMounted] = useState(false);
-  const [selectedViewMode, setSelectedViewMode] = useState('Semantic');
+  const [selectedViewMode, setSelectedViewMode] = useState(ViewMode.Semantic);
+  const [selectedViewModeReady, setSelectedViewModeReady] = useState(true);
   const [stare, setStare] = useState(2); // Step 2
   const [localRecords, setLocalRecords] = useState<NodeInfo[]>([]);
   const [status, setStatus] = useState('');
@@ -169,7 +176,7 @@ function App() {
           console.log({ newRad, calculated_radius, minLastAccesses, maxLastAccesses })
           return { ...x, xOriginal: x.x, yOriginal: x.y, radius: newRad }
         });
-        const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0])
+        const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0], selectedViewMode)
 
         setResults(normalizedPositions);
       }
@@ -186,7 +193,7 @@ function App() {
         setStatus('');
       });
     }
-  }, [activeTabCount, dataLoaded, results])
+  }, [activeTabCount, dataLoaded, results, selectedViewMode])
 
   //activate when not in dev mode
   useEffect(() => {
@@ -206,7 +213,7 @@ function App() {
           const remapped = remap(x?.lastAccessed || 0, minLastAccessed, maxLastAccessed, 0.5, 1.0);
           return { ...x, xOriginal: x.x, yOriginal: x.y, radius: remapped * calculated_radius }
         });
-        const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0])
+        const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0], selectedViewMode)
         setResults(normalizedPositions);
       }
     };
@@ -237,7 +244,7 @@ function App() {
     console.log('calling this loop how many times?')
     console.log({ localRecords })
     const runAsync = async () => {
-      const normalizedPositions = await calculatePositionsFromEmbeddings(localRecords, neighborCount[0], minDistance[0])
+      const normalizedPositions = await calculatePositionsFromEmbeddings(localRecords, neighborCount[0], minDistance[0], selectedViewMode)
       if (normalizedPositions)
         setResults(normalizedPositions);
     };
@@ -279,7 +286,16 @@ function App() {
       });
     }
 
-  }, [neighborCountReady, minDistanceReady, radiusDivisorReady, resizeFlag, localRecords])
+    if (localRecords.length > 0 && selectedViewModeReady) {
+      setSelectedViewModeReady(false);
+      setLoadingDrawing(true)
+      runAsync().then(() => {
+        setLoadingDrawing(false)
+        setLoading(false)
+      });
+    }
+
+  }, [neighborCountReady, minDistanceReady, radiusDivisorReady, resizeFlag, localRecords, selectedViewMode])
 
 
 
@@ -408,9 +424,9 @@ function App() {
     });
   }
 
-  async function tryVisualizeEmbeddings(records: any, nNeighbors: number, minDist: number) {
+  async function tryVisualizeEmbeddings(records: any, nNeighbors: number, minDist: number, viewMode: ViewMode) {
     if (!records) undefined;
-    const results = await visualizeEmbeddings(records, nNeighbors, minDist)
+    const results = await visualizeEmbeddings(records, nNeighbors, minDist, viewMode)
 
     if (results !== undefined) {
       return results;
@@ -418,7 +434,7 @@ function App() {
     else {
       console.log('retrying with fewer neighbors... ' + (nNeighbors - 1))
       if (nNeighbors > 1) {
-        return await tryVisualizeEmbeddings(records, nNeighbors - 1, minDist)
+        return await tryVisualizeEmbeddings(records, nNeighbors - 1, minDist, viewMode)
       }
       else {
         return undefined;
@@ -426,7 +442,7 @@ function App() {
     }
   }
 
-  async function visualizeEmbeddings(records: any, nNeighbors: number, minDist: number) {
+  async function visualizeEmbeddings(records: any, nNeighbors: number, minDist: number, viewMode: ViewMode) {
     const prng = new Prando(42);
     try {
       //@ts-ignore
@@ -440,7 +456,7 @@ function App() {
       console.log({ nonNullEmbeddings })
       //const nonNullEmbeddings = filteredIndeces.map((x: any, i: number) => embeddings[i][0]); // Assuming extra array wrapping
       console.log({ nonNullEmbeddings })
-      const umap = new UMAP({ nNeighbors, random: () => prng.next(), minDist, nComponents: 2 });
+      const umap = new UMAP({ nNeighbors, random: () => prng.next(), minDist, nComponents: viewMode === ViewMode.Semantic ? 2 : 2 });
       const positions = await umap.fitAsync(nonNullEmbeddings);
       return { positions, ids: filteredIndeces };
     }
@@ -504,10 +520,10 @@ function App() {
     return particles;
   }
 
-  async function calculatePositionsFromEmbeddings(records: NodeInfo[], nCount: number, minDist: number) {
+  async function calculatePositionsFromEmbeddings(records: NodeInfo[], nCount: number, minDist: number, viewMode: ViewMode) {
     console.log('about to visualize embeddings')
     console.log({ records })
-    const rawPositions = await tryVisualizeEmbeddings(records, nCount, minDist)
+    const rawPositions = await tryVisualizeEmbeddings(records, nCount, minDist, viewMode)
     console.log('raw positions')
     console.log({ rawPositions })
     if (rawPositions !== undefined) {
@@ -535,9 +551,8 @@ function App() {
 
 
   useEffect(() => {
-    console.log('min distance: ')
-    console.log(minDistance)
-  }, [minDistance])
+    setSelectedViewModeReady(true)
+  }, [selectedViewMode])
 
   console.log('loading: ' + loading)
 
@@ -610,116 +625,137 @@ function App() {
   //handle open tab
   const onMouseDown: MouseEventHandler = (e) => {
     if (loading || loadingDrawing) return;
-    const point = { x: e.clientX, y: e.clientY };
-
-    // if (hovered) {
-    //   const match = results.find((r: any) => r.id === hovered);
-
-    // }
+    if (hovered) {
+      const match = results?.find((r: any) => r.id === hovered);
+      if (match) {
+        console.log({ match });
+        const matchNumber = Number(match.id);
+        chrome.tabs.get(matchNumber, (tab) => {
+          if (chrome.runtime.lastError) {
+            console.log('CREATE');
+            // If the tab doesn't exist, open a new tab with the URL
+            chrome.tabs.create({ url: match.url, active: true });
+          } else {
+            console.log('OPEN');
+            // If the tab exists, make it active
+            chrome.tabs.update(matchNumber, { active: true }, () => {
+              // Bring the tab's window to the foreground
+              if (tab.windowId) {
+                chrome.windows.update(tab.windowId, { focused: true });
+              }
+            });
+          }
+        });
+      } else {
+        console.log('no match');
+      }
+    }
   }
 
-  useEffect(() => {
-    console.log('hovered: ' + hovered)
-  }, [hovered])
+useEffect(() => {
+  console.log('hovered: ' + hovered)
+}, [hovered])
 
-  return (
-    <>
-      {loading ? (
-        <>
+return (
+  <>
+    {loading ? (
+      <>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column', // Stack the divs vertically
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '100vh',
+        }}>
           <div style={{
-            display: 'flex',
-            flexDirection: 'column', // Stack the divs vertically
-            justifyContent: 'center',
-            alignItems: 'center',
-            height: '100vh',
-          }}>
-            <div style={{
-              fontSize: '72px'
-            }} className="loading">
-              <span>u</span><span>n</span><span>t</span><span>a</span><span>b</span>
-              <span>b</span><span>e</span><span>d</span>
-            </div>
-            <div className="chatbox">
-              <div className="text">
-                {status}
-              </div>
+            fontSize: '72px'
+          }} className="loading">
+            <span>u</span><span>n</span><span>t</span><span>a</span><span>b</span>
+            <span>b</span><span>e</span><span>d</span>
+          </div>
+          <div className="chatbox">
+            <div className="text">
+              {status}
             </div>
           </div>
-        </>
-      ) : (
-        <>
-          {loadingDrawing ? (<div
-            style={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              right: 0,
-              height: "100vh",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              backgroundColor: "rgba(255, 255, 255, 0.8)",
-              zIndex: 2,
-            }}
-          >
-            <div className="chatbox">
-              <div className="text">
-                Re-drawing...
+        </div>
+      </>
+    ) : (
+      <>
+        {loadingDrawing ? (<div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: "100vh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: "rgba(255, 255, 255, 0.8)",
+            zIndex: 2,
+          }}
+        >
+          <div className="chatbox">
+            <div className="text">
+              Re-drawing...
+            </div>
+          </div>
+        </div>) : null}
+        <div style={{ position: 'relative' }}>
+          <Stage width={dimensions.width} height={dimensions.height}
+            options={{ background: '#202025' }}
+            onMouseMove={onMouseMove}
+            onMouseDown={onMouseDown}>
+            {results && results.map((result: PartialNodeInfo, key: number) => {
+              return <DrawNode key={result?.id || key}
+                nodeInfo={result}
+                hovered={hovered} />
+            })}
+          </Stage>
+          {tooltip.visible && (
+            <div style={{
+              position: 'absolute',
+              left: tooltip.x,
+              top: tooltip.y,
+              padding: '5px',
+              background: 'red',
+              border: '1px solid black',
+              borderRadius: '5px',
+              pointerEvents: 'none', // Prevents the tooltip from interfering with mouse events
+              transform: `translate(-50%, -${(calculated_radius) + 20}px)`, // Adjusts the position to be above the cursor
+              whiteSpace: 'nowrap'
+            }} className={cn(
+              "z-50 overflow-hidden rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+            )}>
+              <div className="flex-col">
+                <div style={{
+                  fontWeight: 'bold',
+                  textOverflow: 'ellipsis',
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
+                  maxWidth: '200px',
+                }}>{tooltip.content}</div>
+                <div style={{
+                  textOverflow: 'ellipsis',
+                  overflow: 'hidden',
+                  whiteSpace: 'nowrap',
+                  maxWidth: '200px',
+                }}>{tooltip.url}</div>
               </div>
             </div>
-          </div>) : null}
-          <div style={{ position: 'relative' }}>
-            <Stage width={dimensions.width} height={dimensions.height}
-              options={{ background: '#202025' }}
-              onMouseMove={onMouseMove}
-              onMouseDown={onMouseDown}>
-              {results && results.map((result: PartialNodeInfo, key: number) => {
-                return <DrawNode key={result?.id || key}
-                  nodeInfo={result}
-                  hovered={hovered} />
-              })}
-            </Stage>
-            {tooltip.visible && (
-              <div style={{
-                position: 'absolute',
-                left: tooltip.x,
-                top: tooltip.y,
-                padding: '5px',
-                background: 'red',
-                border: '1px solid black',
-                borderRadius: '5px',
-                pointerEvents: 'none', // Prevents the tooltip from interfering with mouse events
-                transform: `translate(-50%, -${(calculated_radius) + 20}px)`, // Adjusts the position to be above the cursor
-                whiteSpace: 'nowrap'
-              }} className={cn(
-                "z-50 overflow-hidden rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
-              )}>
-                <div className="flex-col">
-                  <div style={{
-                    fontWeight: 'bold',
-                    textOverflow: 'ellipsis',
-                    overflow: 'hidden',
-                    whiteSpace: 'nowrap',
-                    maxWidth: '200px',
-                  }}>{tooltip.content}</div>
-                  <div style={{
-                    textOverflow: 'ellipsis',
-                    overflow: 'hidden',
-                    whiteSpace: 'nowrap',
-                    maxWidth: '200px',
-                  }}>{tooltip.url}</div>
-                </div>
-              </div>
-            )}
+          )}
 
 
-            <div className="popover-top-right flex flex-col gap-2 px-8 py-4" style={{ margin: '10px 20px' }}>
-              <div className="w-full flex justify-end p-2">
-                <div className="font-bold" style={{ color: '#E9E9E9'}}>{results?.length || 0} tabs!!!</div>
-              </div>
-              <Menubar className="outline-menu" style={{ outlineColor: '#E9E9E9'}}>
-                <MenubarMenu>
-                  <MenubarTrigger style={{ color: '#E9E9E9'}}>Tabs</MenubarTrigger>
+          <div className="popover-top-right flex flex-col gap-2 px-8 py-4" style={{ margin: '10px 20px' }}>
+            <div className="w-full flex justify-end p-2">
+              <div className="font-bold" style={{ color: '#E9E9E9' }}>{results?.length || 0} tabs!!!</div>
+            </div>
+            <Menubar className="outline-menu" style={{ outlineColor: '#E9E9E9' }}>
+              {/* <MenubarMenu>
+                  <MenubarTrigger 
+                  className="hover:bg-transparent"
+                  style={{ color: '#E9E9E9'}}>Tabs</MenubarTrigger>
                   <MenubarContent>
                     <MenubarItem>
                       Collapse All <MenubarShortcut>⌘C</MenubarShortcut>
@@ -732,108 +768,114 @@ function App() {
                       Print... <MenubarShortcut>⌘P</MenubarShortcut>
                     </MenubarItem>
                   </MenubarContent>
-                </MenubarMenu>
-                <MenubarMenu>
-                  <MenubarTrigger style={{ color: '#E9E9E9'}}>View Mode</MenubarTrigger>
-                  <MenubarContent>
-                    <MenubarCheckboxItem
-                      onClick={() => setSelectedViewMode('Semantic')}
-                      checked={selectedViewMode === 'Semantic'}>
-                      Semantic
-                    </MenubarCheckboxItem>
-                    <MenubarCheckboxItem
-                      onClick={() => setSelectedViewMode('Concentric')}
-                      checked={selectedViewMode === 'Concentric'}>
-                      Concentric
-                    </MenubarCheckboxItem>
-                    <MenubarCheckboxItem
-                      onClick={() => setSelectedViewMode('Historical')}
-                      checked={selectedViewMode === 'Historical'}>
-                      Historical
-                    </MenubarCheckboxItem>
-                    <MenubarSeparator />
-                    <div className="flex flex-col justify-between gap-6 my-4 ml-8">
-                      <div className="grid grid-cols-2 items-center gap-4 mr-8">
-                        <Label htmlFor="width">Distance</Label>
-                        <Slider
-                          className={"flex-grow"}
-                          min={0.001}
-                          defaultValue={minDistance}
-                          step={0.001}
-                          max={1.0}
-                          onValueChange={(v) => setMinDistance(v)}
-                          onBlur={(v) => {
-                            setMinDistanceReady(true)
-                          }}
-                        />
+                </MenubarMenu> */}
+              <MenubarMenu>
+                <MenubarTrigger
+                  className="hover:bg-transparent active:bg-transparent"
+                  style={{ color: '#E9E9E9' }}>View Mode</MenubarTrigger>
+                <MenubarContent>
+                  <MenubarCheckboxItem
+                    onClick={() => setSelectedViewMode(ViewMode.Semantic)}
+                    checked={selectedViewMode === ViewMode.Semantic}>
+                    Semantic
+                  </MenubarCheckboxItem>
+                  <MenubarCheckboxItem
+                    onClick={() => setSelectedViewMode(ViewMode.Concentric)}
+                    checked={selectedViewMode === ViewMode.Concentric}>
+                    Concentric
+                  </MenubarCheckboxItem>
+                  <MenubarCheckboxItem
+                    onClick={() => setSelectedViewMode(ViewMode.Historical)}
+                    checked={selectedViewMode === ViewMode.Historical}>
+                    Historical
+                  </MenubarCheckboxItem>
+                  <MenubarSeparator />
+                  <div className="flex flex-col justify-between gap-6 my-4 ml-8">
+                    <div className="grid grid-cols-2 items-center gap-4 mr-8">
+                      <Label htmlFor="width">Distance</Label>
+                      <Slider
+                        className={"flex-grow"}
+                        min={0.001}
+                        defaultValue={minDistance}
+                        step={0.001}
+                        max={1.0}
+                        onValueChange={(v) => setMinDistance(v)}
+                        onBlur={(v) => {
+                          setMinDistanceReady(true)
+                        }}
+                      />
 
-                      </div>
-                      <div className="grid grid-cols-2 items-center gap-4 mr-8">
-                        <Label htmlFor="width">Neighbors</Label>
-                        <Slider
-                          className={"flex-grow"}
-                          min={3}
-                          defaultValue={neighborCount}
-                          step={1}
-                          max={20}
-                          onValueChange={(v) => setNeighborCount(v)}
-                          onBlur={(v) => {
-                            setNeighborCountReady(true)
-                          }}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 items-center gap-4 mr-8">
-                        <Label htmlFor="width">Radius Divisor</Label>
-                        <Slider
-                          className={"flex-grow"}
-                          min={10}
-                          defaultValue={radiusDivisor}
-                          step={1}
-                          max={20}
-                          onValueChange={(v) => setRadiusDivisor(v)}
-                          onBlur={(v) => {
-                            setRadiusDivisorReady(true)
-                          }}
-                        />
-                      </div>
                     </div>
-                  </MenubarContent>
-                </MenubarMenu>
-                <MenubarMenu>
-                  <MenubarTrigger style={{ color: '#E9E9E9'}}>Settings</MenubarTrigger>
-                  <MenubarContent>
-                    <MenubarRadioGroup value="benoit">
-                      <MenubarRadioItem value="andy">Andy</MenubarRadioItem>
-                      <MenubarRadioItem value="benoit">Benoit</MenubarRadioItem>
-                      <MenubarRadioItem value="Luis">Luis</MenubarRadioItem>
-                    </MenubarRadioGroup>
-                    <MenubarSeparator />
-                    <MenubarItem inset>Edit...</MenubarItem>
-                    <MenubarSeparator />
-                    <MenubarItem inset>Add Profile...</MenubarItem>
-                  </MenubarContent>
-                </MenubarMenu>
-                <MenubarMenu>
-                  <MenubarTrigger style={{ color: '#E9E9E9'}}>Analytics</MenubarTrigger>
-                  <MenubarContent>
-                    <MenubarRadioGroup value="benoit">
-                      <MenubarRadioItem value="andy">Andy</MenubarRadioItem>
-                      <MenubarRadioItem value="benoit">Benoit</MenubarRadioItem>
-                      <MenubarRadioItem value="Luis">Luis</MenubarRadioItem>
-                    </MenubarRadioGroup>
-                    <MenubarSeparator />
-                    <MenubarItem inset>Edit...</MenubarItem>
-                    <MenubarSeparator />
-                    <MenubarItem inset>Add Profile...</MenubarItem>
-                  </MenubarContent>
-                </MenubarMenu>
-              </Menubar>
-            </div>
+                    <div className="grid grid-cols-2 items-center gap-4 mr-8">
+                      <Label htmlFor="width">Neighbors</Label>
+                      <Slider
+                        className={"flex-grow"}
+                        min={3}
+                        defaultValue={neighborCount}
+                        step={1}
+                        max={20}
+                        onValueChange={(v) => setNeighborCount(v)}
+                        onBlur={(v) => {
+                          setNeighborCountReady(true)
+                        }}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 items-center gap-4 mr-8">
+                      <Label htmlFor="width">Radius Divisor</Label>
+                      <Slider
+                        className={"flex-grow"}
+                        min={10}
+                        defaultValue={radiusDivisor}
+                        step={1}
+                        max={20}
+                        onValueChange={(v) => setRadiusDivisor(v)}
+                        onBlur={(v) => {
+                          setRadiusDivisorReady(true)
+                        }}
+                      />
+                    </div>
+                  </div>
+                </MenubarContent>
+              </MenubarMenu>
+              <MenubarMenu>
+                <MenubarTrigger
+                  className="hover:bg-transparent active:bg-transparent"
+                  style={{ color: '#E9E9E9' }}>Settings</MenubarTrigger>
+                <MenubarContent>
+                  <MenubarRadioGroup value="benoit">
+                    <MenubarRadioItem value="andy">Andy</MenubarRadioItem>
+                    <MenubarRadioItem value="benoit">Benoit</MenubarRadioItem>
+                    <MenubarRadioItem value="Luis">Luis</MenubarRadioItem>
+                  </MenubarRadioGroup>
+                  <MenubarSeparator />
+                  <MenubarItem inset>Edit...</MenubarItem>
+                  <MenubarSeparator />
+                  <MenubarItem inset>Add Profile...</MenubarItem>
+                </MenubarContent>
+              </MenubarMenu>
+              <MenubarMenu>
+                <MenubarTrigger
+                  className="hover:bg-transparent active:bg-transparent"
+                  style={{ color: '#E9E9E9' }}>Analytics</MenubarTrigger>
+                <MenubarContent>
+                  <MenubarRadioGroup value="benoit">
+                    <MenubarRadioItem value="andy">Andy</MenubarRadioItem>
+                    <MenubarRadioItem value="benoit">Benoit</MenubarRadioItem>
+                    <MenubarRadioItem value="Luis">Luis</MenubarRadioItem>
+                  </MenubarRadioGroup>
+                  <MenubarSeparator />
+                  <MenubarItem inset>Edit...</MenubarItem>
+                  <MenubarSeparator />
+                  <MenubarItem inset>Add Profile...</MenubarItem>
+                </MenubarContent>
+              </MenubarMenu>
+            </Menubar>
           </div>
-        </>
-      )}
-    </>
-  );
+        </div>
+      </>
+    )}
+  </>
+);
 }
 
 export default App
