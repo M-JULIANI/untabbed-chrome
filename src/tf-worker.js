@@ -97,7 +97,7 @@ async function fetchAllRecords() {
     });
 }
 
-function storeEmbedding(url, embedding, id, title, lastAccessed, favIconUrl) {
+function storeEmbedding(url, embedding, id, title, lastAccessed, favIconUrl, windowId) {
     //console.log('attempting to store embedding...')
     let request = indexedDB.open(indexdb_name, db_version);
 
@@ -170,6 +170,7 @@ async function runEmbeddingPipeline(data) {
                 const id = x.id
                 const lastAccessed = x.lastAccessed
                 const favIconUrl = x.favIconUrl
+                const windowId = x.windowId
                 // console.log(`getting text from ${url}`)
                 // // const text = await getWebsiteTextFromUrl(url);
                 // let text = 'test text'
@@ -192,7 +193,7 @@ async function runEmbeddingPipeline(data) {
                 // console.log('valid tf_model? ' + validModel)
                 const embedding = tf_model ? await createEmbedding(title) : null;
                 // console.log('attempting to store...')
-                storeEmbedding(url, embedding, id, title, lastAccessed, favIconUrl)
+                storeEmbedding(url, embedding, id, title, lastAccessed, favIconUrl, windowId)
                 //console.log(`embedding: \n\n ${embedding}`);
                 return embedding
             }))
@@ -235,6 +236,7 @@ async function makeObjectStore(db, dbStore) {
             objectStore.createIndex("lastAccessed", "lastAccessed", { unique: false });
             objectStore.createIndex("favIconUrl", "favIconUrl", { unique: false });
             objectStore.createIndex("fullTextProcessed", "fullTextProcessed", { unique: false });
+            objectStore.createIndex("windowId", "windowId", { unique: false });
             resolve(objectStore);
         } catch (error) {
             console.log('error creating object store with creator method');
