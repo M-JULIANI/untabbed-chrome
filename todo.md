@@ -33,13 +33,13 @@ system:
 - [x] animate between positions
 - [ ] make groups, of similar tabs
 - [ ] cron job
-    - check number of entries, delete any in excess of X from db every day
+    - [ ] check number of entries, delete any in excess of X from db every day
 - [ ] canvas
     - [x] onHover
         -[x]  title & url
     - [x] onClick
         - [x] goto tab/window?
-        - [ ] open untabbed side panel on the right?
+        - [x] open untabbed side panel on the right?
     - [ ] display:
         - [ ] radius by visits/last accessed
     - [ ] color by? 

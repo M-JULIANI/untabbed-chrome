@@ -10,7 +10,8 @@
         "sidePanel"
     ],
     "action": {
-        "default_title": "Untabbed-Chrome"
+        "default_title": "Untabbed-Chrome",
+             "default_popup": "index.html"
     },
     "background": {
         "service_worker": "src/service-worker.js"
@@ -21,9 +22,6 @@
     ],
     "content_security_policy": {
         "extension_pages": "script-src 'self' 'wasm-unsafe-eval' http://localhost:* http://127.0.0.1:*; object-src 'self';"
-    },
-    "chrome_url_overrides": {
-        "newtab": "index.html"
     },
     "side_panel": {
         "default_path": "index.html",
