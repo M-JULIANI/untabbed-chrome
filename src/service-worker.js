@@ -1,7 +1,6 @@
-
-chrome.action.onClicked.addListener(function (tab) {
-  chrome.tabs.create({ url: chrome.runtime.getURL("index.html") });
-});
+chrome.sidePanel
+  .setPanelBehavior({ openPanelOnActionClick: true })
+  .catch((error) => console.error(error));
 
 
 // Function to check for changes in the IndexedDB store
