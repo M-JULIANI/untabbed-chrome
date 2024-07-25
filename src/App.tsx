@@ -672,10 +672,6 @@ function App() {
     }
   }
 
-  useEffect(() => {
-    console.log('hovered: ' + hovered)
-  }, [hovered])
-
   return (
     <>
       {loading ? (
@@ -718,7 +714,7 @@ function App() {
           >
             <div className="chatbox">
               <div className="text">
-                Re-drawing...
+                {activeTabCount > 99 ? `${activeTabCount} tabs.......` : `${activeTabCount} tabs........`}
               </div>
             </div>
           </div>) : null}
@@ -768,10 +764,6 @@ function App() {
 
 
             <div className="popover-top-right flex flex-col gap-2 px-8 py-4" style={{ margin: '10px 20px' }}>
-              <div className="flex flex-row justify-between">
-                <div className="w-full flex justify-end p-2">
-                  <div className="font-bold" style={{ color: '#E9E9E9' }}>{results?.length || 0} tabs!</div>
-                </div>
                 <Menubar className="outline-menu" style={{ outlineColor: '#E9E9E9' }}>
                   {/* <MenubarMenu>
                   <MenubarTrigger 
@@ -891,7 +883,6 @@ function App() {
                     </MenubarContent>
                   </MenubarMenu>
                 </Menubar>
-              </div>
             </div>
           </div>
         </>
