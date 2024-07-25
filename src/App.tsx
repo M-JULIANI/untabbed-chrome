@@ -55,7 +55,7 @@ enum ViewMode {
 }
 
 export function remap(num: number, inputMin: number, inputMax: number, outputMin: number, outputMax: number) {
-  const epsilon = 0; // small constant to avoid division by zero
+  const epsilon = 0.1; // small constant to avoid division by zero
   return ((num - inputMin) / (inputMax - inputMin + epsilon)) * (outputMax - outputMin) + outputMin;
 }
 
@@ -454,11 +454,17 @@ function App() {
 
       const nonNullEmbeddings = filteredIndeces.map((x: any, i: number) => embeddings[i])
       console.log({ nonNullEmbeddings })
-      //const nonNullEmbeddings = filteredIndeces.map((x: any, i: number) => embeddings[i][0]); // Assuming extra array wrapping
-      console.log({ nonNullEmbeddings })
-      const umap = new UMAP({ nNeighbors, random: () => prng.next(), minDist, nComponents: viewMode === ViewMode.Semantic ? 2 : 2 });
+      //const nonNullEmbeddings = filteredIndeces.map((x: any, i: number) => embeddings[i][0]); // Assuming extra array wrappin
+      const umap = new UMAP({ nNeighbors, random: () => prng.next(), minDist, nComponents: viewMode === ViewMode.Semantic ? 2 : 1 })
       const positions = await umap.fitAsync(nonNullEmbeddings);
-      return { positions, ids: filteredIndeces };
+      const updatedPositions = positions.map(x => {
+        x[0] = (x[0] ?? 0) || 10;
+        x[1] = (x[1] ?? 0) || 10;
+        return x;
+      });
+      console.log({ positions, updatedPositions })
+
+      return { positions: updatedPositions, ids: filteredIndeces };
     }
     catch (error) {
       console.log('error in visualizeEmbeddings')
@@ -666,10 +672,6 @@ function App() {
     }
   }
 
-  useEffect(() => {
-    console.log('hovered: ' + hovered)
-  }, [hovered])
-
   return (
     <>
       {loading ? (
@@ -712,7 +714,7 @@ function App() {
           >
             <div className="chatbox">
               <div className="text">
-                Re-drawing...
+                {activeTabCount > 99 ? `${activeTabCount} tabs.......` : `${activeTabCount} tabs........`}
               </div>
             </div>
           </div>) : null}
@@ -762,11 +764,8 @@ function App() {
 
 
             <div className="popover-top-right flex flex-col gap-2 px-8 py-4" style={{ margin: '10px 20px' }}>
-              <div className="w-full flex justify-end p-2">
-                <div className="font-bold" style={{ color: '#E9E9E9' }}>{results?.length || 0} tabs!!!</div>
-              </div>
-              <Menubar className="outline-menu" style={{ outlineColor: '#E9E9E9' }}>
-                {/* <MenubarMenu>
+                <Menubar className="outline-menu" style={{ outlineColor: '#E9E9E9' }}>
+                  {/* <MenubarMenu>
                   <MenubarTrigger 
                   className="hover:bg-transparent"
                   style={{ color: '#E9E9E9'}}>Tabs</MenubarTrigger>
@@ -783,107 +782,107 @@ function App() {
                     </MenubarItem>
                   </MenubarContent>
                 </MenubarMenu> */}
-                <MenubarMenu>
-                  <MenubarTrigger
-                    className="hover:bg-transparent active:bg-transparent"
-                    style={{ color: '#E9E9E9' }}>View Mode</MenubarTrigger>
-                  <MenubarContent>
-                    <MenubarCheckboxItem
-                      onClick={() => setSelectedViewMode(ViewMode.Semantic)}
-                      checked={selectedViewMode === ViewMode.Semantic}>
-                      Semantic
-                    </MenubarCheckboxItem>
-                    <MenubarCheckboxItem
-                      onClick={() => setSelectedViewMode(ViewMode.Concentric)}
-                      checked={selectedViewMode === ViewMode.Concentric}>
-                      Concentric
-                    </MenubarCheckboxItem>
-                    <MenubarCheckboxItem
-                      onClick={() => setSelectedViewMode(ViewMode.Historical)}
-                      checked={selectedViewMode === ViewMode.Historical}>
-                      Historical
-                    </MenubarCheckboxItem>
-                    <MenubarSeparator />
-                    <div className="flex flex-col justify-between gap-6 my-4 ml-8">
-                      <div className="grid grid-cols-2 items-center gap-4 mr-8">
-                        <Label htmlFor="width">Distance</Label>
-                        <Slider
-                          className={"flex-grow"}
-                          min={0.001}
-                          defaultValue={minDistance}
-                          step={0.001}
-                          max={1.0}
-                          onValueChange={(v) => setMinDistance(v)}
-                          onBlur={(v) => {
-                            setMinDistanceReady(true)
-                          }}
-                        />
+                  <MenubarMenu>
+                    <MenubarTrigger
+                      className="hover:bg-transparent active:bg-transparent"
+                      style={{ color: '#E9E9E9' }}>View Mode</MenubarTrigger>
+                    <MenubarContent>
+                      <MenubarCheckboxItem
+                        onClick={() => setSelectedViewMode(ViewMode.Semantic)}
+                        checked={selectedViewMode === ViewMode.Semantic}>
+                        Semantic
+                      </MenubarCheckboxItem>
+                      <MenubarCheckboxItem
+                        onClick={() => setSelectedViewMode(ViewMode.Concentric)}
+                        checked={selectedViewMode === ViewMode.Concentric}>
+                        Concentric
+                      </MenubarCheckboxItem>
+                      <MenubarCheckboxItem
+                        onClick={() => setSelectedViewMode(ViewMode.Historical)}
+                        checked={selectedViewMode === ViewMode.Historical}>
+                        Historical
+                      </MenubarCheckboxItem>
+                      <MenubarSeparator />
+                      <div className="flex flex-col justify-between gap-6 my-4 ml-8">
+                        <div className="grid grid-cols-2 items-center gap-4 mr-8">
+                          <Label htmlFor="width">Distance</Label>
+                          <Slider
+                            className={"flex-grow"}
+                            min={0.001}
+                            defaultValue={minDistance}
+                            step={0.001}
+                            max={1.0}
+                            onValueChange={(v) => setMinDistance(v)}
+                            onBlur={(v) => {
+                              setMinDistanceReady(true)
+                            }}
+                          />
 
+                        </div>
+                        <div className="grid grid-cols-2 items-center gap-4 mr-8">
+                          <Label htmlFor="width">Neighbors</Label>
+                          <Slider
+                            className={"flex-grow"}
+                            min={3}
+                            defaultValue={neighborCount}
+                            step={1}
+                            max={20}
+                            onValueChange={(v) => setNeighborCount(v)}
+                            onBlur={(v) => {
+                              setNeighborCountReady(true)
+                            }}
+                          />
+                        </div>
+                        <div className="grid grid-cols-2 items-center gap-4 mr-8">
+                          <Label htmlFor="width">Radius Divisor</Label>
+                          <Slider
+                            className={"flex-grow"}
+                            min={10}
+                            defaultValue={radiusDivisor}
+                            step={1}
+                            max={20}
+                            onValueChange={(v) => setRadiusDivisor(v)}
+                            onBlur={(v) => {
+                              setRadiusDivisorReady(true)
+                            }}
+                          />
+                        </div>
                       </div>
-                      <div className="grid grid-cols-2 items-center gap-4 mr-8">
-                        <Label htmlFor="width">Neighbors</Label>
-                        <Slider
-                          className={"flex-grow"}
-                          min={3}
-                          defaultValue={neighborCount}
-                          step={1}
-                          max={20}
-                          onValueChange={(v) => setNeighborCount(v)}
-                          onBlur={(v) => {
-                            setNeighborCountReady(true)
-                          }}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 items-center gap-4 mr-8">
-                        <Label htmlFor="width">Radius Divisor</Label>
-                        <Slider
-                          className={"flex-grow"}
-                          min={10}
-                          defaultValue={radiusDivisor}
-                          step={1}
-                          max={20}
-                          onValueChange={(v) => setRadiusDivisor(v)}
-                          onBlur={(v) => {
-                            setRadiusDivisorReady(true)
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </MenubarContent>
-                </MenubarMenu>
-                <MenubarMenu>
-                  <MenubarTrigger
-                    className="hover:bg-transparent active:bg-transparent"
-                    style={{ color: '#E9E9E9' }}>Settings</MenubarTrigger>
-                  <MenubarContent>
-                    <MenubarRadioGroup value="benoit">
-                      <MenubarRadioItem value="andy">Andy</MenubarRadioItem>
-                      <MenubarRadioItem value="benoit">Benoit</MenubarRadioItem>
-                      <MenubarRadioItem value="Luis">Luis</MenubarRadioItem>
-                    </MenubarRadioGroup>
-                    <MenubarSeparator />
-                    <MenubarItem inset>Edit...</MenubarItem>
-                    <MenubarSeparator />
-                    <MenubarItem inset>Add Profile...</MenubarItem>
-                  </MenubarContent>
-                </MenubarMenu>
-                <MenubarMenu>
-                  <MenubarTrigger
-                    className="hover:bg-transparent active:bg-transparent"
-                    style={{ color: '#E9E9E9' }}>Analytics</MenubarTrigger>
-                  <MenubarContent>
-                    <MenubarRadioGroup value="benoit">
-                      <MenubarRadioItem value="andy">Andy</MenubarRadioItem>
-                      <MenubarRadioItem value="benoit">Benoit</MenubarRadioItem>
-                      <MenubarRadioItem value="Luis">Luis</MenubarRadioItem>
-                    </MenubarRadioGroup>
-                    <MenubarSeparator />
-                    <MenubarItem inset>Edit...</MenubarItem>
-                    <MenubarSeparator />
-                    <MenubarItem inset>Add Profile...</MenubarItem>
-                  </MenubarContent>
-                </MenubarMenu>
-              </Menubar>
+                    </MenubarContent>
+                  </MenubarMenu>
+                  <MenubarMenu>
+                    <MenubarTrigger
+                      className="hover:bg-transparent active:bg-transparent"
+                      style={{ color: '#E9E9E9' }}>Settings</MenubarTrigger>
+                    <MenubarContent>
+                      <MenubarRadioGroup value="benoit">
+                        <MenubarRadioItem value="andy">Andy</MenubarRadioItem>
+                        <MenubarRadioItem value="benoit">Benoit</MenubarRadioItem>
+                        <MenubarRadioItem value="Luis">Luis</MenubarRadioItem>
+                      </MenubarRadioGroup>
+                      <MenubarSeparator />
+                      <MenubarItem inset>Edit...</MenubarItem>
+                      <MenubarSeparator />
+                      <MenubarItem inset>Add Profile...</MenubarItem>
+                    </MenubarContent>
+                  </MenubarMenu>
+                  <MenubarMenu>
+                    <MenubarTrigger
+                      className="hover:bg-transparent active:bg-transparent"
+                      style={{ color: '#E9E9E9' }}>Analytics</MenubarTrigger>
+                    <MenubarContent>
+                      <MenubarRadioGroup value="benoit">
+                        <MenubarRadioItem value="andy">Andy</MenubarRadioItem>
+                        <MenubarRadioItem value="benoit">Benoit</MenubarRadioItem>
+                        <MenubarRadioItem value="Luis">Luis</MenubarRadioItem>
+                      </MenubarRadioGroup>
+                      <MenubarSeparator />
+                      <MenubarItem inset>Edit...</MenubarItem>
+                      <MenubarSeparator />
+                      <MenubarItem inset>Add Profile...</MenubarItem>
+                    </MenubarContent>
+                  </MenubarMenu>
+                </Menubar>
             </div>
           </div>
         </>

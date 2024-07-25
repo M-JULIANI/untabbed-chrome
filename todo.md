@@ -29,6 +29,7 @@ system:
     - tab closed
         - handler
             - -> update db
+- [ ] caching of localRecords 
 - [x] get default display settings working well
 - [x] animate between positions
 - [ ] make groups, of similar tabs
