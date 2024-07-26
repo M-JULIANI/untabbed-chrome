@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import defaultFavicon from './favicon.svg';
 import { Graphics, Sprite, Stage } from '@pixi/react';
-import { NodeInfo, remap } from "@/App";
+import { PartialNodeInfo } from "@/lib/types";
 
 export type DrawNodeProps = {
     partialNodeInfo: PartialNodeInfo;

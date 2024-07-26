@@ -114,7 +114,7 @@ function App() {
           console.log({ newRad, calculated_radius, minLastAccesses, maxLastAccesses })
           return { ...x, xOriginal: x.x, yOriginal: x.y, radius: newRad }
         });
-        const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0], selectedViewMode)
+        const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0], selectedViewMode, calculated_radius)
 
         setResults(normalizedPositions);
       }
@@ -151,7 +151,7 @@ function App() {
           const remapped = remap(x?.lastAccessed || 0, minLastAccessed, maxLastAccessed, 0.5, 1.0);
           return { ...x, xOriginal: x.x, yOriginal: x.y, radius: remapped * calculated_radius }
         });
-        const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0], selectedViewMode)
+        const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0], selectedViewMode, calculated_radius)
         setResults(normalizedPositions);
       }
     };
@@ -182,7 +182,7 @@ function App() {
     console.log('calling this loop how many times?')
     console.log({ localRecords })
     const runAsync = async () => {
-      const normalizedPositions = await calculatePositionsFromEmbeddings(localRecords, neighborCount[0], minDistance[0], selectedViewMode)
+      const normalizedPositions = await calculatePositionsFromEmbeddings(localRecords, neighborCount[0], minDistance[0], selectedViewMode, calculated_radius)
       if (normalizedPositions)
         setResults(normalizedPositions);
     };
@@ -756,7 +756,7 @@ async function visualizeEmbeddings(records: any, nNeighbors: number, minDist: nu
   }
 }
 
-async function calculatePositionsFromEmbeddings(records: NodeInfo[], nCount: number, minDist: number, viewMode: ViewMode) {
+async function calculatePositionsFromEmbeddings(records: NodeInfo[], nCount: number, minDist: number, viewMode: ViewMode, calculated_radius: number) {
   console.log('about to visualize embeddings')
   console.log({ records })
   const rawPositions = await tryVisualizeEmbeddings(records, nCount, minDist, viewMode)
