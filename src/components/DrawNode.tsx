@@ -11,17 +11,7 @@ export type DrawNodeProps = {
     maxLastAccessed: number;
 };
 
-export type PartialNodeInfo = {
-    id: NodeInfo['id'];
-    x: NodeInfo['x'];
-    y: NodeInfo['y'];
-    originalX: NodeInfo['xOriginal'];
-    originalY: NodeInfo['yOriginal'];
-    favIconUrl: NodeInfo['favIconUrl'];
-    radius: NodeInfo['radius'];
-    title: NodeInfo['title'];
-    url: NodeInfo['url'];
-};
+
 export const DrawNode = ({ nodeInfo, colorMap, hovered }: { nodeInfo: PartialNodeInfo, colorMap?: any, hovered: string }) => {
     const { x, y, favIconUrl, id, radius, originalX, originalY } = nodeInfo;
     const [imageUrl, setImageUrl] = useState(favIconUrl || defaultFavicon);
