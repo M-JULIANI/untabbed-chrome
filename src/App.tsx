@@ -28,79 +28,16 @@ import { Slider } from './components/ui/slider';
 import { stubResults } from './lib/data/stubResults';
 import { stubResultsLarge } from './lib/data/stubResultsLarge';
 import { stubTabs } from './lib/data/stubTabs';
-import { DrawNode, PartialNodeInfo } from './components/DrawNode'
+import { DrawNode } from './components/DrawNode'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/ui/tooltip';
 import { cn } from './lib/utils';
 import { useToast } from "@/components/ui/use-toast"
+import { isPointInsideRectangle, normalizePositions, remap, separateParticles } from './lib/math';
+import { NodeInfo, PartialNodeInfo, ViewMode } from './lib/types';
+import { SIDE_GUTTER, DEFAULT_RADIUS, INDEXDB_NAME, INDEXDB_STORE, DB_VERSION, TAB_DELTA_ALLOWED } from './lib/constants';
 
-export type NodeInfo = {
-  id: string;
-  title: string;
-  url: string;
-  favIconUrl: string | null;
-  lastAccessed: number | null;
-  text: string;
-  embedding: number[][];
-  x: number;
-  y: number;
-  radius: number;
-  fullTextProcessed: boolean;
-  xOriginal?: number;
-  yOriginal?: number;
-}
 
-enum ViewMode {
-  Semantic = 'Semantic',
-  Concentric = 'Concentric',
-  Historical = 'Historical'
-}
-
-export function remap(num: number, inputMin: number, inputMax: number, outputMin: number, outputMax: number) {
-  const epsilon = 0.1; // small constant to avoid division by zero
-  return ((num - inputMin) / (inputMax - inputMin + epsilon)) * (outputMax - outputMin) + outputMin;
-}
-
-const indexdb_name = "untabbedDB";
-const indexdb_store = "textStore";
-const db_version = 2;
-const tab_delta_allowed = 10;
-const colorMap = {
-  "Entertainment": "#FFB399",
-  "General": "#FFD1B3",
-  "Technology": "#E6B3CC",
-  "Education": "#B399FF",
-  "Books": "#99B3FF",
-  "News": "#99D6FF",
-  "Creativity": "#B3FFD9",
-  "Business": "#FFFFB3",
-  "How To": "#FFD699",
-  "Q&A": "#FFB366",
-  "Community": "#FF8533",
-  "Writing": "#D1B3E6"
-};
-
-const SIDE_GUTTER = 150
-const DEFAULT_RADIUS = 250
 const turndownService = new TurndownService();
-
-async function loadTabs() {
-  const tabs: any[] = [];
-  const windowList = await new Promise<any[]>((resolve) => {
-    chrome.windows.getAll({ populate: true }, function (windows) {
-      resolve(windows);
-    });
-  });
-
-  windowList.forEach(window => {
-    window.current = false;
-    window.focused = false;
-    window.tabs.forEach((tab: any) => {
-      tabs.push(tab);
-    });
-  });
-
-  return tabs;
-}
 
 function App() {
   const [results, setResults] = useState<PartialNodeInfo[]>();
@@ -181,14 +118,14 @@ function App() {
           console.log({ newRad, calculated_radius, minLastAccesses, maxLastAccesses })
           return { ...x, xOriginal: x.x, yOriginal: x.y, radius: newRad }
         });
-        const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0], selectedViewMode)
+        const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0], selectedViewMode, calculated_radius)
 
         setResults(normalizedPositions);
       }
     }
     console.log('possibly rerunning fetch...')
     console.log({ dataLoaded, results, activeTabCount })
-    if (dataLoaded && results && results.length > 0 && Math.abs(results.length - activeTabCount) > tab_delta_allowed) {
+    if (dataLoaded && results && results.length > 0 && Math.abs(results.length - activeTabCount) > TAB_DELTA_ALLOWED) {
       setStatus('Fetching.......')
 
       // setDataLoaded(false)
@@ -218,7 +155,7 @@ function App() {
           const remapped = remap(x?.lastAccessed || 0, minLastAccessed, maxLastAccessed, 0.5, 1.0);
           return { ...x, xOriginal: x.x, yOriginal: x.y, radius: remapped * calculated_radius }
         });
-        const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0], selectedViewMode)
+        const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0], selectedViewMode, calculated_radius)
         setResults(normalizedPositions);
       }
     };
@@ -249,7 +186,7 @@ function App() {
     console.log('calling this loop how many times?')
     console.log({ localRecords })
     const runAsync = async () => {
-      const normalizedPositions = await calculatePositionsFromEmbeddings(localRecords, neighborCount[0], minDistance[0], selectedViewMode)
+      const normalizedPositions = await calculatePositionsFromEmbeddings(localRecords, neighborCount[0], minDistance[0], selectedViewMode, calculated_radius)
       if (normalizedPositions)
         setResults(normalizedPositions);
     };
@@ -438,17 +375,17 @@ function App() {
   }
 
   function fetchAllRecords(): Promise<any> {
-    console.log('Opening IndexedDB:', indexdb_name);
-    let request = indexedDB.open(indexdb_name, db_version);
+    console.log('Opening IndexedDB:', INDEXDB_NAME);
+    let request = indexedDB.open(INDEXDB_NAME, DB_VERSION);
 
     return new Promise((resolve, reject) => {
       request.onsuccess = function (event) {
         console.log('IndexedDB opened successfully');
         let db = (event.target as IDBOpenDBRequest)?.result;
-        console.log('Starting transaction on store:', indexdb_store);
-        let transaction = db.transaction(indexdb_store, "readonly");
-        let objectStore = transaction.objectStore(indexdb_store);
-        console.log('Fetching all records from store:', indexdb_store);
+        console.log('Starting transaction on store:', INDEXDB_STORE);
+        let transaction = db.transaction(INDEXDB_STORE, "readonly");
+        let objectStore = transaction.objectStore(INDEXDB_STORE);
+        console.log('Fetching all records from store:', INDEXDB_STORE);
 
         let getAllRequest = objectStore.getAll();
 
@@ -469,136 +406,6 @@ function App() {
       };
     });
   }
-
-  async function tryVisualizeEmbeddings(records: any, nNeighbors: number, minDist: number, viewMode: ViewMode) {
-    if (!records) undefined;
-    const results = await visualizeEmbeddings(records, nNeighbors, minDist, viewMode)
-
-    if (results !== undefined) {
-      return results;
-    }
-    else {
-      console.log('retrying with fewer neighbors... ' + (nNeighbors - 1))
-      if (nNeighbors > 1) {
-        return await tryVisualizeEmbeddings(records, nNeighbors - 1, minDist, viewMode)
-      }
-      else {
-        return undefined;
-      }
-    }
-  }
-
-  async function visualizeEmbeddings(records: any, nNeighbors: number, minDist: number, viewMode: ViewMode) {
-    const prng = new Prando(42);
-    try {
-      //@ts-ignore
-      const embeddings = records.map(x => x.embedding)
-      console.log({ records, embeddings })
-      const filteredIndeces = embeddings
-        .map((x: any, i: number) => x !== undefined ? i : -1)
-        .filter((i: any) => i !== undefined);
-
-      const nonNullEmbeddings = filteredIndeces.map((x: any, i: number) => embeddings[i])
-      console.log({ nonNullEmbeddings })
-      //const nonNullEmbeddings = filteredIndeces.map((x: any, i: number) => embeddings[i][0]); // Assuming extra array wrappin
-      const umap = new UMAP({ nNeighbors, random: () => prng.next(), minDist, nComponents: viewMode === ViewMode.Semantic ? 2 : 1 })
-      const positions = await umap.fitAsync(nonNullEmbeddings);
-      const updatedPositions = positions.map(x => {
-        x[0] = (x[0] ?? 0) || 10;
-        x[1] = (x[1] ?? 0) || 10;
-        return x;
-      });
-      console.log({ positions, updatedPositions })
-
-      return { positions: updatedPositions, ids: filteredIndeces };
-    }
-    catch (error) {
-      console.log('error in visualizeEmbeddings')
-      console.log(error)
-      return undefined
-    }
-  }
-  function normalizePositions(positions: number[][], indeces: number[], records: PartialNodeInfo[]) {
-
-    const inputMinX = positions.map(x => x[0]).reduce((a, b) => Math.min(a, b))
-    const inputMaxX = positions.map(x => x[0]).reduce((a, b) => Math.max(a, b))
-    const inputMinY = positions.map(x => x[1]).reduce((a, b) => Math.min(a, b))
-    const inputMaxY = positions.map(x => x[1]).reduce((a, b) => Math.max(a, b))
-
-    const outputMinX = SIDE_GUTTER
-    const outputMaxX = window.innerWidth - SIDE_GUTTER
-    const outputMinY = SIDE_GUTTER
-    const outputMaxY = window.innerHeight - SIDE_GUTTER
-
-    const normalizedPositions = positions.map((x, i) => {
-      const newX = remap(x[0], inputMinX, inputMaxX, outputMinX, outputMaxX)
-      const newY = remap(x[1], inputMinY, inputMaxY, outputMinY, outputMaxY)
-      const index = indeces[i]
-      return { ...records[index], x: newX, y: newY }
-    })
-    return normalizedPositions;
-  }
-
-  function separateParticles(particles: PartialNodeInfo[]) {
-    const kSpringConstant = 0.1; // Spring constant
-    let isOverlapping = true;
-    const maxIterations = 100;
-    let iteration = 0;
-
-    while (isOverlapping && iteration < maxIterations) {
-      isOverlapping = false;
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[j].x - particles[i].x;
-          const dy = particles[j].y - particles[i].y;
-          const distance = Math.sqrt(dx * dx + dy * dy);
-          const minDistance = (particles[i].radius + particles[j].radius) * 1.12;
-          if (distance < minDistance) {
-            isOverlapping = true;
-            const overlap = minDistance - distance;
-            const force = overlap * kSpringConstant;
-            const forceX = (dx / distance) * force;
-            const forceY = (dy / distance) * force;
-            particles[i].x -= forceX;
-            particles[i].y -= forceY;
-            particles[j].x += forceX;
-            particles[j].y += forceY;
-          }
-        }
-      }
-      iteration++;
-    }
-
-    return particles;
-  }
-
-  async function calculatePositionsFromEmbeddings(records: NodeInfo[], nCount: number, minDist: number, viewMode: ViewMode) {
-    console.log('about to visualize embeddings')
-    console.log({ records })
-    const rawPositions = await tryVisualizeEmbeddings(records, nCount, minDist, viewMode)
-    console.log('raw positions')
-    console.log({ rawPositions })
-    if (rawPositions !== undefined) {
-      const partialNodeInfo: PartialNodeInfo[] = records.map(nodeInfo => ({
-        x: nodeInfo.x,
-        y: nodeInfo.y,
-        originalX: nodeInfo.x,
-        originalY: nodeInfo.y,
-        id: nodeInfo.id,
-        favIconUrl: nodeInfo.favIconUrl,
-        radius: nodeInfo.radius,
-        title: nodeInfo.title,
-        url: nodeInfo.url
-      }));
-      const normalized = normalizePositions(rawPositions.positions, rawPositions.ids, partialNodeInfo)
-      const particles = separateParticles(normalized.map((x: any) => ({ ...x, x: x.x, y: x.y, radius: calculated_radius })));
-      console.log('normalized particle positions')
-      console.log({ particles })
-      return particles
-    }
-    return undefined
-  }
-
   console.log({ results })
 
 
@@ -608,34 +415,6 @@ function App() {
 
   console.log('loading: ' + loading)
 
-  function isPointInsideRectangle(
-    point: { x: number, y: number },
-    rect: { position: { x: number, y: number }; length: number; height: number },
-  ): boolean {
-    return (
-      point.x >= rect.position.x - rect.length * 0.5 &&
-      point.x <= rect.position.x + rect.length * 0.5 &&
-      point.y >= rect.position.y - rect.height * 0.5 &&
-      point.y <= rect.position.y + rect.height * 0.5
-    );
-  }
-
-  const checkHover = (point: { x: number, y: number }, results: PartialNodeInfo[]) => {
-    let isHovering: string = '';
-    results?.forEach((result) => {
-      if (
-        isPointInsideRectangle(point, {
-          position: { x: result.x, y: result.y },
-          length: result?.radius || 1,
-          height: result?.radius || 1,
-        })
-      ) {
-        isHovering = result.id || '';
-        return;
-      }
-    });
-    return isHovering;
-  };
 
   const onMouseMove: MouseEventHandler = (e) => {
     if (loading || loadingDrawing) return;
@@ -935,6 +714,118 @@ function App() {
       )}
     </>
   );
+}
+
+const checkHover = (point: { x: number, y: number }, results: PartialNodeInfo[]) => {
+  let isHovering: string = '';
+  results?.forEach((result) => {
+    if (
+      isPointInsideRectangle(point, {
+        position: { x: result.x, y: result.y },
+        length: result?.radius || 1,
+        height: result?.radius || 1,
+      })
+    ) {
+      isHovering = result.id || '';
+      return;
+    }
+  });
+  return isHovering;
+};
+
+async function loadTabs() {
+  const tabs: any[] = [];
+  const windowList = await new Promise<any[]>((resolve) => {
+    chrome.windows.getAll({ populate: true }, function (windows) {
+      resolve(windows);
+    });
+  });
+
+  windowList.forEach(window => {
+    window.current = false;
+    window.focused = false;
+    window.tabs.forEach((tab: any) => {
+      tabs.push(tab);
+    });
+  });
+
+  return tabs;
+}
+
+async function tryVisualizeEmbeddings(records: any, nNeighbors: number, minDist: number, viewMode: ViewMode) {
+  if (!records) undefined;
+  const results = await visualizeEmbeddings(records, nNeighbors, minDist, viewMode)
+
+  if (results !== undefined) {
+    return results;
+  }
+  else {
+    console.log('retrying with fewer neighbors... ' + (nNeighbors - 1))
+    if (nNeighbors > 1) {
+      return await tryVisualizeEmbeddings(records, nNeighbors - 1, minDist, viewMode)
+    }
+    else {
+      return undefined;
+    }
+  }
+}
+
+async function visualizeEmbeddings(records: any, nNeighbors: number, minDist: number, viewMode: ViewMode) {
+  const prng = new Prando(42);
+  try {
+    //@ts-ignore
+    const embeddings = records.map(x => x.embedding)
+    console.log({ records, embeddings })
+    const filteredIndeces = embeddings
+      .map((x: any, i: number) => x !== undefined ? i : -1)
+      .filter((i: any) => i !== undefined);
+
+    const nonNullEmbeddings = filteredIndeces.map((x: any, i: number) => embeddings[i])
+    console.log({ nonNullEmbeddings })
+    //const nonNullEmbeddings = filteredIndeces.map((x: any, i: number) => embeddings[i][0]); // Assuming extra array wrappin
+    const umap = new UMAP({ nNeighbors, random: () => prng.next(), minDist, nComponents: viewMode === ViewMode.Semantic ? 2 : 1 })
+    const positions = await umap.fitAsync(nonNullEmbeddings);
+    const updatedPositions = positions.map(x => {
+      x[0] = (x[0] ?? 0) || 10;
+      x[1] = (x[1] ?? 0) || 10;
+      return x;
+    });
+    console.log({ positions, updatedPositions })
+
+    return { positions: updatedPositions, ids: filteredIndeces };
+  }
+  catch (error) {
+    console.log('error in visualizeEmbeddings')
+    console.log(error)
+    return undefined
+  }
+}
+
+async function calculatePositionsFromEmbeddings(records: NodeInfo[], nCount: number, minDist: number, viewMode: ViewMode, calculated_radius: number) {
+  console.log('about to visualize embeddings')
+  console.log({ records })
+  const rawPositions = await tryVisualizeEmbeddings(records, nCount, minDist, viewMode)
+  console.log('raw positions')
+  console.log({ rawPositions })
+  if (rawPositions !== undefined) {
+    const partialNodeInfo: PartialNodeInfo[] = records.map(nodeInfo => ({
+      x: nodeInfo.x,
+      y: nodeInfo.y,
+      originalX: nodeInfo.x,
+      originalY: nodeInfo.y,
+      id: nodeInfo.id,
+      favIconUrl: nodeInfo.favIconUrl,
+      radius: nodeInfo.radius,
+      title: nodeInfo.title,
+      url: nodeInfo.url
+    }));
+    const normalized = normalizePositions(rawPositions.positions, rawPositions.ids, partialNodeInfo, SIDE_GUTTER)
+    const particles = separateParticles(normalized.map((x: any) => ({ ...x, x: x.x, y: x.y, radius: calculated_radius })));
+    console.log('normalized particle positions')
+    console.log({ particles })
+    return particles
+  }
+  return undefined
 }
 
 export default App
