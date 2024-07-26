@@ -22,16 +22,15 @@ schema:
     visited: number // times opened total
 
 system:
-- [ ] event listener
-    - tab open
-        - handler
-            -> update db
-    - tab closed
-        - handler
-            - -> update db
+
+- [ ] improved architecture: service worker to listen to CUD events, and pass them to APP
+    - [ ] on remove: remove entry from db, filter resuts in app
+    - [ ] on add: add entry to db, pass message on to app for processing
+    - [ ] on update: think about this more...
 - [ ] caching of localRecords 
 - [x] get default display settings working well
 - [x] animate between positions
+- [ ] create kmeans clusters
 - [ ] make groups, of similar tabs
 - [ ] cron job
     - [ ] check number of entries, delete any in excess of X from db every day
