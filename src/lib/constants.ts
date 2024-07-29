@@ -7,7 +7,7 @@ export const COLOR_MAP = {
     "News": "#99D6FF",
     "Creativity": "#B3FFD9",
     "Business": "#FFFFB3",
-    "How To": "#FFD699",
+    "How-To": "#FFD699",
     "Q&A": "#FFB366",
     "Community": "#FF8533",
     "Writing": "#D1B3E6"

@@ -22,7 +22,11 @@ schema:
     visited: number // times opened total
 
 system:
-
+- [ ] settings
+    - [ ] auto-delete duplicates?
+    - [ ] auto-close tabs a after 10, 20, 30, 40 days open?
+        - [ ] auto close menu based on action-type
+       
 - [ ] improved architecture: service worker to listen to CUD events, and pass them to APP
     - [ ] on remove: remove entry from db, filter resuts in app
     - [ ] on add: add entry to db, pass message on to app for processing
@@ -31,12 +35,14 @@ system:
 - [x] get default display settings working well
 - [x] animate between positions
 - [ ] create kmeans clusters
-- [ ] make groups, of similar tabs
+<!-- - [ ] make groups, of similar tabs -->
 - [ ] cron job
     - [ ] check number of entries, delete any in excess of X from db every day
 - [ ] canvas
     - [x] onHover
         -[x]  title & url
+        - [ ] screenshot of website?
+        - [ ] 
     - [x] onClick
         - [x] goto tab/window?
         - [x] open untabbed side panel on the right?
@@ -48,10 +54,30 @@ system:
 - [ ] settings
     - [ ] collapse all windows
     - [ ] display all windows
+- [ ] map view
+    - semantic
+    - task-oriented
 - [ ] views:
-    - [x] semantics 2d
-    - [ ] concentric 1d
-    - [ ] chronological 1d
+    - semantic
+        - [x] semantics 2d
+        - [ ] concentric 1d
+        - [ ] chronological 1d
+        - [ ] bucket
+    - task oriented
+        - [ ] semantics 2d
+        - [ ] concentric 1d
+        - [ ] chronological 1d
+        - [ ] bucket
 
 - [ ] considerations
     - deduplication
+
+- [ ] ai
+    - [ ] auto-categorize url into a semantic 'category'
+    - [ ] auto-categorize url into an 'action'
+
+- action types:
+    - to read (articles, blogs)
+    - to buy (carts, amazon, other)
+    - to book (tickets: airline, doctor)
+    - 

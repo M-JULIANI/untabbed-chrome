@@ -13,7 +13,7 @@ export function isPointInsideRectangle(
   }
 
   export function remap(num: number, inputMin: number, inputMax: number, outputMin: number, outputMax: number) {
-    const epsilon = 0.1; // small constant to avoid division by zero
+    const epsilon = 0.01; // small constant to avoid division by zero
     return ((num - inputMin) / (inputMax - inputMin + epsilon)) * (outputMax - outputMin) + outputMin;
   }
 
