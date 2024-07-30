@@ -32,8 +32,8 @@ import { DrawNode } from './components/DrawNode'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/ui/tooltip';
 import { cn } from './lib/utils';
 import { useToast } from "@/components/ui/use-toast"
-import { isPointInsideRectangle, normalizePositions, remap, separateParticles } from './lib/math';
-import { NodeInfo, PartialNodeInfo, ViewMode } from './lib/types';
+import { isPointInsideRectangle, normalizePositions, normalizePositions_, remap, separateParticles } from './lib/math';
+import { NavigationMode, NodeInfo, PartialNodeInfo, ViewMode } from './lib/types';
 import { SIDE_GUTTER, DEFAULT_RADIUS, INDEXDB_NAME, INDEXDB_STORE, DB_VERSION, TAB_DELTA_ALLOWED } from './lib/constants';
 
 
@@ -52,7 +52,8 @@ function App() {
   const [loadingDrawing, setLoadingDrawing] = useState(false);
 
   const [isMounted, setIsMounted] = useState(false);
-  const [selectedViewMode, setSelectedViewMode] = useState(ViewMode.Semantic);
+  const [selectedViewMode, setSelectedViewMode] = useState(ViewMode.Similarity);
+  const [selectedNavMode, setSelectedNavMode] = useState(NavigationMode.Semantic);
   const [selectedViewModeReady, setSelectedViewModeReady] = useState(true);
   const [stare, setStare] = useState(2); // Step 2
   const [localRecords, setLocalRecords] = useState<NodeInfo[]>([]);
@@ -80,6 +81,7 @@ function App() {
     if (results) {
       setCalculatedRadius(DEFAULT_RADIUS / (radiusDivisor[0] || 10))
     }
+    toast({ title: "calculatedRadius", description: `calc-${calculated_radius}, divisor-${radiusDivisor[0]}` })
   }, [results, radiusDivisor])
 
   useEffect(() => {
@@ -102,7 +104,7 @@ function App() {
   useEffect(() => {
     const runAsync = async () => {
       const records = await fetchAllRecords();
-      console.log("FETCHED RECORDS")
+      console.log('REFETCHED RECORDS DUE TO MISSING ENTRIES')
       console.log({ records })
       if (records) {
         setLocalRecords(records)
@@ -112,23 +114,28 @@ function App() {
         //@ts-ignore
         const maxLastAccesses = records?.map(x => x.lastAccessed).reduce((a: any, b: any) => Math.max(a, b))
         if (maxLastAccesses) setMaxLastAccessed(maxLastAccesses)
-        const particlesCopy = records.map((x: NodeInfo) => {
-          const remapped = remap(x?.lastAccessed || 0, minLastAccessed, maxLastAccessed, 0.5, 1.0);
-          const newRad = remapped * calculated_radius
-          console.log({ newRad, calculated_radius, minLastAccesses, maxLastAccesses })
+        const rec_length = records.length * 1.00 ?? 10; //TEMPORARY
+        const rad = calculated_radius ?? 10;
+        const particlesCopy = records.map((x: NodeInfo, i: number) => {
+          const remapped = remap(i * 1.00, 0, rec_length, rad * 0.5, rad * 1.25);
+          const newRad = remapped ?? 12;
+          console.log({ index: 'uno', remapped })
           return { ...x, xOriginal: x.x, yOriginal: x.y, radius: newRad }
         });
-        const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0], selectedViewMode, calculated_radius)
+        const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0], selectedViewMode)
 
         setResults(normalizedPositions);
       }
     }
     console.log('possibly rerunning fetch...')
     console.log({ dataLoaded, results, activeTabCount })
-    if (dataLoaded && results && results.length > 0 && Math.abs(results.length - activeTabCount) > TAB_DELTA_ALLOWED) {
+    // if (dataLoaded && results && results.length > 0 && Math.abs(results.length - activeTabCount) > TAB_DELTA_ALLOWED) {
+    const delta = Math.abs((results?.length || 0) - activeTabCount) ?? 0;
+    console.log({ delta, results, activeTabCount })
+    //only runs when results is not adequate
+    if (dataLoaded && (results === undefined || (results && results.length > 0 && Math.abs(results.length - activeTabCount) > 0))) {
+      
       setStatus('Fetching.......')
-
-      // setDataLoaded(false)
       setLoading(true);
       runAsync().then(() => {
         setLoading(false)
@@ -141,7 +148,7 @@ function App() {
   useEffect(() => {
     const runAsync = async () => {
       const records = await fetchAllRecords();
-      console.log("FETCHED RECORDS")
+      console.log("FETCHED RECORDS INITIAL")
       console.log({ records })
       if (records) {
         setLocalRecords(records)
@@ -151,11 +158,15 @@ function App() {
         //@ts-ignore
         const maxLastAccesses = records?.map(x => x.lastAccessed).reduce((a: any, b: any) => Math.max(a, b))
         if (maxLastAccesses) setMaxLastAccessed(maxLastAccesses)
-        const particlesCopy = records.map((x: NodeInfo) => {
-          const remapped = remap(x?.lastAccessed || 0, minLastAccessed, maxLastAccessed, 0.5, 1.0);
-          return { ...x, xOriginal: x.x, yOriginal: x.y, radius: remapped * calculated_radius }
+        const rec_length = records.length * 1.00; //TEMPORARY
+        const rad = calculated_radius ?? 10;
+        const particlesCopy = records.map((x: NodeInfo, i: number) => {
+          const remapped = remap(i * 1.00, 0, rec_length, rad * 0.5, rad * 1.25);
+          const newRad = remapped ?? 12;
+          console.log({ index: 'dos', remapped })
+          return { ...x, xOriginal: x.x, yOriginal: x.y, radius: newRad }
         });
-        const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0], selectedViewMode, calculated_radius)
+        const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0], selectedViewMode)
         setResults(normalizedPositions);
       }
     };
@@ -170,23 +181,26 @@ function App() {
       });
     }
 
-    // //FOR LOCAL
-    // console.log('data loaded...')
-    // setResults(stubResultsLarge)
-    // const minLastAccesses = results.map(x => x.lastAccessed).reduce((a, b) => Math.min(a, b))
-    // setMinLastAccessed(minLastAccesses)
-    // const maxLastAccesses = results.map(x => x.lastAccessed).reduce((a, b) => Math.max(a, b))
-    // setMaxLastAccessed(maxLastAccesses)
-    // if (stubResults !== undefined) setLocalRecords(stubResultsLarge)
-    // setLoading(false)
   }, [dataLoaded]);
+
+  useEffect(()=>{
+console.log('data loaded: ' + dataLoaded)
+  },[dataLoaded])
 
 
   useEffect(() => {
     console.log('calling this loop how many times?')
     console.log({ localRecords })
     const runAsync = async () => {
-      const normalizedPositions = await calculatePositionsFromEmbeddings(localRecords, neighborCount[0], minDistance[0], selectedViewMode, calculated_radius)
+      const rec_length = localRecords.length * 1.00 ?? 10; //TEMPORARY
+      const rad = calculated_radius ?? 10;
+      const particlesCopy = localRecords.map((x: NodeInfo, i: number) => {
+        const remapped = remap(i * 1.00, 0, rec_length, rad * 0.5, rad * 1.25);
+        const newRad = remapped ?? 12;
+        console.log({ index: 'uno', remapped })
+        return { ...x, xOriginal: x.x, yOriginal: x.y, radius: newRad }
+      });
+      const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0], selectedViewMode)
       if (normalizedPositions)
         setResults(normalizedPositions);
     };
@@ -229,6 +243,7 @@ function App() {
     }
 
     if (localRecords.length > 0 && selectedViewModeReady) {
+      console.log('rerunning WITH NEW VIEW MODE')
       setSelectedViewModeReady(false);
       setLoadingDrawing(true)
       runAsync().then(() => {
@@ -237,44 +252,44 @@ function App() {
       });
     }
 
-  }, [neighborCountReady, minDistanceReady, radiusDivisorReady, resizeFlag, localRecords, selectedViewMode])
+  }, [neighborCountReady, minDistanceReady, radiusDivisorReady, resizeFlag, localRecords, selectedViewModeReady])
 
 
   useEffect(() => {
     const handleWorkerMessage = async (message: any) => {
       console.log({ message })
-      if(results){
-      if (message.type === 'TAB_CREATED') {
-        toast({
-          title: "Tab CREATED",
-          description: `${message.tabId}`,
-        })
+      if (results) {
+        if (message.type === 'TAB_CREATED') {
+          toast({
+            title: "Tab CREATED",
+            description: `${message.tabId}`,
+          })
 
-        const tab = {
-          id: message.id,
-          title: message.title,
-          url: message.url,
-          favIconUrl: message.favIconUrl,
-          lastAccessed: message.lastAccessed,
-          text: ''
-        }
-        //process single tab
-        tfWorker.postMessage({
-          operation: 'processTabs',
-          data: tab
-        });
-        console.log(`Tab created with ID: ${message.tabId}`);
-      } else if (message.type === 'TAB_REMOVED') {
+          const tab = {
+            id: message.id,
+            title: message.title,
+            url: message.url,
+            favIconUrl: message.favIconUrl,
+            lastAccessed: message.lastAccessed,
+            text: ''
+          }
+          //process single tab
+          tfWorker.postMessage({
+            operation: 'processTabs',
+            data: tab
+          });
+          console.log(`Tab created with ID: ${message.tabId}`);
+        } else if (message.type === 'TAB_REMOVED') {
           setLoadingDrawing(true);
-          setResults((r)=> r?.filter(x=> x.id !== message.id))
+          setResults((r) => r?.filter(x => x.id !== message.id))
           setLoadingDrawing(false);
           console.log(`Tab removed with ID: ${message.id}`);
           toast({
             title: "Tab REMOVED",
             description: `${message.id}`,
           })
+        }
       }
-    }
     };
 
     chrome.runtime.onMessage.addListener(handleWorkerMessage);
@@ -407,14 +422,12 @@ function App() {
     });
   }
   console.log({ results })
+  console.log('loading: ' + loading)
 
 
   useEffect(() => {
-    setSelectedViewModeReady(true)
+    if (!selectedViewModeReady) setSelectedViewModeReady(true)
   }, [selectedViewMode])
-
-  console.log('loading: ' + loading)
-
 
   const onMouseMove: MouseEventHandler = (e) => {
     if (loading || loadingDrawing) return;
@@ -496,6 +509,13 @@ function App() {
       }
     }
   }
+
+  useEffect(() => {
+    toast({
+      title: "view mode changed.",
+      description: `${selectedViewMode}`,
+    })
+  }, [selectedViewMode]);
 
   return (
     <>
@@ -608,13 +628,25 @@ function App() {
                   </MenubarContent>
                 </MenubarMenu> */}
                 <MenubarMenu>
+
                   <MenubarTrigger
                     className="hover:bg-transparent active:bg-transparent"
                     style={{ color: '#E9E9E9' }}>View Mode</MenubarTrigger>
                   <MenubarContent>
                     <MenubarCheckboxItem
-                      onClick={() => setSelectedViewMode(ViewMode.Semantic)}
-                      checked={selectedViewMode === ViewMode.Semantic}>
+                      onClick={() => setSelectedNavMode(NavigationMode.Semantic)}
+                      checked={selectedNavMode === NavigationMode.Semantic}>
+                      Semantic
+                    </MenubarCheckboxItem>
+                    <MenubarCheckboxItem
+                      onClick={() => setSelectedNavMode(NavigationMode.TaskOriented)}
+                      checked={selectedNavMode === NavigationMode.TaskOriented}>
+                      Task-Oriented
+                    </MenubarCheckboxItem>
+                    <MenubarSeparator />
+                    <MenubarCheckboxItem
+                      onClick={() => setSelectedViewMode(ViewMode.Similarity)}
+                      checked={selectedViewMode === ViewMode.Similarity}>
                       Semantic
                     </MenubarCheckboxItem>
                     <MenubarCheckboxItem
@@ -627,52 +659,61 @@ function App() {
                       checked={selectedViewMode === ViewMode.Historical}>
                       Historical
                     </MenubarCheckboxItem>
-                    <MenubarSeparator />
-                    <div className="flex flex-col justify-between gap-6 my-4 ml-8">
-                      <div className="grid grid-cols-2 items-center gap-4 mr-8">
-                        <Label htmlFor="width">Distance</Label>
-                        <Slider
-                          className={"flex-grow"}
-                          min={0.001}
-                          defaultValue={minDistance}
-                          step={0.001}
-                          max={1.0}
-                          onValueChange={(v) => setMinDistance(v)}
-                          onBlur={(v) => {
-                            setMinDistanceReady(true)
-                          }}
-                        />
+                    <MenubarCheckboxItem
+                      onClick={() => setSelectedViewMode(ViewMode.Bucket)}
+                      checked={selectedViewMode === ViewMode.Bucket}>
+                      Bucket
+                    </MenubarCheckboxItem>
+                    {selectedViewMode !== ViewMode.Bucket && (
+                      <>
+                        <MenubarSeparator />
+                        <div className="flex flex-col justify-between gap-6 my-4 ml-8">
+                          <div className="grid grid-cols-2 items-center gap-4 mr-8">
+                            <Label htmlFor="width">Distance</Label>
+                            <Slider
+                              className={"flex-grow"}
+                              min={0.001}
+                              defaultValue={minDistance}
+                              step={0.001}
+                              max={1.0}
+                              onValueChange={(v) => setMinDistance(v)}
+                              onBlur={(v) => {
+                                setMinDistanceReady(true)
+                              }}
+                            />
 
-                      </div>
-                      <div className="grid grid-cols-2 items-center gap-4 mr-8">
-                        <Label htmlFor="width">Neighbors</Label>
-                        <Slider
-                          className={"flex-grow"}
-                          min={3}
-                          defaultValue={neighborCount}
-                          step={1}
-                          max={20}
-                          onValueChange={(v) => setNeighborCount(v)}
-                          onBlur={(v) => {
-                            setNeighborCountReady(true)
-                          }}
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 items-center gap-4 mr-8">
-                        <Label htmlFor="width">Radius Divisor</Label>
-                        <Slider
-                          className={"flex-grow"}
-                          min={10}
-                          defaultValue={radiusDivisor}
-                          step={1}
-                          max={20}
-                          onValueChange={(v) => setRadiusDivisor(v)}
-                          onBlur={(v) => {
-                            setRadiusDivisorReady(true)
-                          }}
-                        />
-                      </div>
-                    </div>
+                          </div>
+                          <div className="grid grid-cols-2 items-center gap-4 mr-8">
+                            <Label htmlFor="width">Neighbors</Label>
+                            <Slider
+                              className={"flex-grow"}
+                              min={3}
+                              defaultValue={neighborCount}
+                              step={1}
+                              max={20}
+                              onValueChange={(v) => setNeighborCount(v)}
+                              onBlur={(v) => {
+                                setNeighborCountReady(true)
+                              }}
+                            />
+                          </div>
+                          <div className="grid grid-cols-2 items-center gap-4 mr-8">
+                            <Label htmlFor="width">Radius Divisor</Label>
+                            <Slider
+                              className={"flex-grow"}
+                              min={10}
+                              defaultValue={radiusDivisor}
+                              step={1}
+                              max={20}
+                              onValueChange={(v) => setRadiusDivisor(v)}
+                              onBlur={(v) => {
+                                setRadiusDivisorReady(true)
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </MenubarContent>
                 </MenubarMenu>
                 <MenubarMenu>
@@ -783,9 +824,15 @@ async function visualizeEmbeddings(records: any, nNeighbors: number, minDist: nu
     const nonNullEmbeddings = filteredIndeces.map((x: any, i: number) => embeddings[i])
     console.log({ nonNullEmbeddings })
     //const nonNullEmbeddings = filteredIndeces.map((x: any, i: number) => embeddings[i][0]); // Assuming extra array wrappin
-    const umap = new UMAP({ nNeighbors, random: () => prng.next(), minDist, nComponents: viewMode === ViewMode.Semantic ? 2 : 1 })
-    const positions = await umap.fitAsync(nonNullEmbeddings);
-    const updatedPositions = positions.map(x => {
+    const umap = new UMAP({ nNeighbors: records.length >= 5 ? nNeighbors : 0, random: () => prng.next(), minDist, nComponents: viewMode === ViewMode.Similarity ? 2 : 1 })
+    let positions;
+    if (records.length < 5) {
+      // Provide default positions or handle the case appropriately
+      positions = records.map((r: any, i: number) => [10 + i, 10]); // Example default positions
+    } else {
+      positions = await umap.fitAsync(nonNullEmbeddings);
+    }
+    const updatedPositions = positions.map((x: any)=> {
       x[0] = (x[0] ?? 0) || 10;
       x[1] = (x[1] ?? 0) || 10;
       return x;
@@ -801,7 +848,7 @@ async function visualizeEmbeddings(records: any, nNeighbors: number, minDist: nu
   }
 }
 
-async function calculatePositionsFromEmbeddings(records: NodeInfo[], nCount: number, minDist: number, viewMode: ViewMode, calculated_radius: number) {
+async function calculatePositionsFromEmbeddings(records: NodeInfo[], nCount: number, minDist: number, viewMode: ViewMode) {
   console.log('about to visualize embeddings')
   console.log({ records })
   const rawPositions = await tryVisualizeEmbeddings(records, nCount, minDist, viewMode)
@@ -819,11 +866,15 @@ async function calculatePositionsFromEmbeddings(records: NodeInfo[], nCount: num
       title: nodeInfo.title,
       url: nodeInfo.url
     }));
-    const normalized = normalizePositions(rawPositions.positions, rawPositions.ids, partialNodeInfo, SIDE_GUTTER)
-    const particles = separateParticles(normalized.map((x: any) => ({ ...x, x: x.x, y: x.y, radius: calculated_radius })));
+    let normalized = normalizePositions(rawPositions.positions, rawPositions.ids, partialNodeInfo, SIDE_GUTTER)
+    normalized = separateParticles(normalized.map((x: any) => ({ ...x, x: x.x, y: x.y })));
+    if(viewMode === ViewMode.Historical || viewMode === ViewMode.Concentric) {
+      normalized = normalizePositions_(normalized, SIDE_GUTTER)
+    }
+ 
     console.log('normalized particle positions')
-    console.log({ particles })
-    return particles
+    console.log({ normalized })
+    return normalized
   }
   return undefined
 }

@@ -13,7 +13,7 @@ export function isPointInsideRectangle(
   }
 
   export function remap(num: number, inputMin: number, inputMax: number, outputMin: number, outputMax: number) {
-    const epsilon = 0.1; // small constant to avoid division by zero
+    const epsilon = 0.01; // small constant to avoid division by zero
     return ((num - inputMin) / (inputMax - inputMin + epsilon)) * (outputMax - outputMin) + outputMin;
   }
 
@@ -36,6 +36,12 @@ export function isPointInsideRectangle(
       return { ...records[index], x: newX, y: newY }
     })
     return normalizedPositions;
+  }
+
+  export function normalizePositions_(records: PartialNodeInfo[], sideGutter: number) {
+    const positions = records.map(x => [x.x, x.y])
+    const indeces = records.map((x, i) => i)
+    return normalizePositions(positions, indeces, records, sideGutter);
   }
 
   export function separateParticles(particles: PartialNodeInfo[]) {

@@ -115,6 +115,10 @@ export const DrawNode = ({ nodeInfo, colorMap, hovered }: { nodeInfo: PartialNod
         checkImage(favIconUrl || defaultFavicon);
     }, [favIconUrl]);
 
+    // console.log({radius})
+
+    const safeguarded_rad = radius || 14
+
     return (
         <>
             <Graphics draw={draw} />
@@ -123,8 +127,8 @@ export const DrawNode = ({ nodeInfo, colorMap, hovered }: { nodeInfo: PartialNod
                 anchor={0.5}
                 x={animatedPosition.x}
                 y={animatedPosition.y}
-                width={radius}
-                height={radius}
+                width={safeguarded_rad}
+                height={safeguarded_rad}
             />
         </>
     );
