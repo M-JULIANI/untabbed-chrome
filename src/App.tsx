@@ -32,7 +32,7 @@ import { DrawNode } from './components/DrawNode'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/ui/tooltip';
 import { cn } from './lib/utils';
 import { useToast } from "@/components/ui/use-toast"
-import { isPointInsideRectangle, normalizePositions, normalizePositions_, remap, separateParticles } from './lib/math';
+import { isPointInsideRectangle, normalizePositions, normalizePositions_, remap, separateParticles, separateParticlesVertically } from './lib/math';
 import { NavigationMode, NodeInfo, PartialNodeInfo, ViewMode } from './lib/types';
 import { SIDE_GUTTER, DEFAULT_RADIUS, INDEXDB_NAME, INDEXDB_STORE, DB_VERSION, TAB_DELTA_ALLOWED } from './lib/constants';
 
@@ -868,7 +868,10 @@ async function calculatePositionsFromEmbeddings(records: NodeInfo[], nCount: num
     }));
     let normalized = normalizePositions(rawPositions.positions, rawPositions.ids, partialNodeInfo, SIDE_GUTTER)
     normalized = separateParticles(normalized.map((x: any) => ({ ...x, x: x.x, y: x.y })));
-    if(viewMode === ViewMode.Historical || viewMode === ViewMode.Concentric) {
+    if(viewMode === ViewMode.Historical) {
+      normalized = separateParticlesVertically(normalized, SIDE_GUTTER)
+    }
+    else if(viewMode === ViewMode.Concentric) {
       normalized = normalizePositions_(normalized, SIDE_GUTTER)
     }
  
