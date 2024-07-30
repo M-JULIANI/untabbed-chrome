@@ -76,3 +76,26 @@ export function isPointInsideRectangle(
 
     return particles;
   }
+
+  export function separateParticlesVertically(particles: PartialNodeInfo[], sideGutter: number) {
+    const inputMinY = particles.map(x => x.radius).reduce((a, b) => Math.min(a, b))
+    const inputMaxY = particles.map(x => x.radius).reduce((a, b) => Math.max(a, b))
+    const positions = particles.map(x => [x.x, x.y])
+    const indeces = particles.map((x, i) => i)
+    const outputMinY = sideGutter
+    const outputMaxY = window.innerHeight - sideGutter
+    const outputMinX = sideGutter
+    const outputMaxX = window.innerWidth - sideGutter
+
+    const inputMinX = positions.map(x => x[0]).reduce((a, b) => Math.min(a, b))
+    const inputMaxX = positions.map(x => x[0]).reduce((a, b) => Math.max(a, b))
+
+    const normalizedPositions = positions.map((x, i) => {
+      const newY = remap(particles[i].radius, inputMaxY, inputMinY, outputMinY, outputMaxY)
+      const newX = remap(x[0], inputMinX, inputMaxX, outputMinX, outputMaxX)
+      const index = indeces[i]
+      return { ...particles[index], x: newX, y: newY }
+    })
+
+    return normalizedPositions;
+  }
