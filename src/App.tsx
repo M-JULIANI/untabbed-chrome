@@ -32,7 +32,7 @@ import { DrawNode } from './components/DrawNode'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './components/ui/tooltip';
 import { cn } from './lib/utils';
 import { useToast } from "@/components/ui/use-toast"
-import { isPointInsideRectangle, normalizePositions, remap, separateParticles } from './lib/math';
+import { isPointInsideRectangle, normalizePositions, normalizePositions_, remap, separateParticles } from './lib/math';
 import { NavigationMode, NodeInfo, PartialNodeInfo, ViewMode } from './lib/types';
 import { SIDE_GUTTER, DEFAULT_RADIUS, INDEXDB_NAME, INDEXDB_STORE, DB_VERSION, TAB_DELTA_ALLOWED } from './lib/constants';
 
@@ -104,7 +104,7 @@ function App() {
   useEffect(() => {
     const runAsync = async () => {
       const records = await fetchAllRecords();
-      console.log("FETCHED RECORDS")
+      console.log('REFETCHED RECORDS DUE TO MISSING ENTRIES')
       console.log({ records })
       if (records) {
         setLocalRecords(records)
@@ -119,7 +119,7 @@ function App() {
         const particlesCopy = records.map((x: NodeInfo, i: number) => {
           const remapped = remap(i * 1.00, 0, rec_length, rad * 0.5, rad * 1.25);
           const newRad = remapped ?? 12;
-          console.log({ newRad, calculated_radius, minLastAccesses, maxLastAccesses })
+          console.log({ index: 'uno', remapped })
           return { ...x, xOriginal: x.x, yOriginal: x.y, radius: newRad }
         });
         const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0], selectedViewMode)
@@ -130,10 +130,12 @@ function App() {
     console.log('possibly rerunning fetch...')
     console.log({ dataLoaded, results, activeTabCount })
     // if (dataLoaded && results && results.length > 0 && Math.abs(results.length - activeTabCount) > TAB_DELTA_ALLOWED) {
-      if (dataLoaded && results && results.length > 0 && Math.abs(results.length - activeTabCount) > 0) {
+    const delta = Math.abs((results?.length || 0) - activeTabCount) ?? 0;
+    console.log({ delta, results, activeTabCount })
+    //only runs when results is not adequate
+    if (dataLoaded && (results === undefined || (results && results.length > 0 && Math.abs(results.length - activeTabCount) > 0))) {
+      
       setStatus('Fetching.......')
-
-      // setDataLoaded(false)
       setLoading(true);
       runAsync().then(() => {
         setLoading(false)
@@ -146,7 +148,7 @@ function App() {
   useEffect(() => {
     const runAsync = async () => {
       const records = await fetchAllRecords();
-      console.log("FETCHED RECORDS")
+      console.log("FETCHED RECORDS INITIAL")
       console.log({ records })
       if (records) {
         setLocalRecords(records)
@@ -161,7 +163,7 @@ function App() {
         const particlesCopy = records.map((x: NodeInfo, i: number) => {
           const remapped = remap(i * 1.00, 0, rec_length, rad * 0.5, rad * 1.25);
           const newRad = remapped ?? 12;
-          console.log({ rec_length, remapped })
+          console.log({ index: 'dos', remapped })
           return { ...x, xOriginal: x.x, yOriginal: x.y, radius: newRad }
         });
         const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0], selectedViewMode)
@@ -179,23 +181,26 @@ function App() {
       });
     }
 
-    // //FOR LOCAL
-    // console.log('data loaded...')
-    // setResults(stubResultsLarge)
-    // const minLastAccesses = results.map(x => x.lastAccessed).reduce((a, b) => Math.min(a, b))
-    // setMinLastAccessed(minLastAccesses)
-    // const maxLastAccesses = results.map(x => x.lastAccessed).reduce((a, b) => Math.max(a, b))
-    // setMaxLastAccessed(maxLastAccesses)
-    // if (stubResults !== undefined) setLocalRecords(stubResultsLarge)
-    // setLoading(false)
   }, [dataLoaded]);
+
+  useEffect(()=>{
+console.log('data loaded: ' + dataLoaded)
+  },[dataLoaded])
 
 
   useEffect(() => {
     console.log('calling this loop how many times?')
     console.log({ localRecords })
     const runAsync = async () => {
-      const normalizedPositions = await calculatePositionsFromEmbeddings(localRecords, neighborCount[0], minDistance[0], selectedViewMode)
+      const rec_length = localRecords.length * 1.00 ?? 10; //TEMPORARY
+      const rad = calculated_radius ?? 10;
+      const particlesCopy = localRecords.map((x: NodeInfo, i: number) => {
+        const remapped = remap(i * 1.00, 0, rec_length, rad * 0.5, rad * 1.25);
+        const newRad = remapped ?? 12;
+        console.log({ index: 'uno', remapped })
+        return { ...x, xOriginal: x.x, yOriginal: x.y, radius: newRad }
+      });
+      const normalizedPositions = await calculatePositionsFromEmbeddings(particlesCopy, neighborCount[0], minDistance[0], selectedViewMode)
       if (normalizedPositions)
         setResults(normalizedPositions);
     };
@@ -238,6 +243,7 @@ function App() {
     }
 
     if (localRecords.length > 0 && selectedViewModeReady) {
+      console.log('rerunning WITH NEW VIEW MODE')
       setSelectedViewModeReady(false);
       setLoadingDrawing(true)
       runAsync().then(() => {
@@ -416,14 +422,12 @@ function App() {
     });
   }
   console.log({ results })
+  console.log('loading: ' + loading)
 
 
   useEffect(() => {
-    setSelectedViewModeReady(true)
+    if (!selectedViewModeReady) setSelectedViewModeReady(true)
   }, [selectedViewMode])
-
-  console.log('loading: ' + loading)
-
 
   const onMouseMove: MouseEventHandler = (e) => {
     if (loading || loadingDrawing) return;
@@ -820,9 +824,15 @@ async function visualizeEmbeddings(records: any, nNeighbors: number, minDist: nu
     const nonNullEmbeddings = filteredIndeces.map((x: any, i: number) => embeddings[i])
     console.log({ nonNullEmbeddings })
     //const nonNullEmbeddings = filteredIndeces.map((x: any, i: number) => embeddings[i][0]); // Assuming extra array wrappin
-    const umap = new UMAP({ nNeighbors, random: () => prng.next(), minDist, nComponents: viewMode === ViewMode.Similarity ? 2 : 1 })
-    const positions = await umap.fitAsync(nonNullEmbeddings);
-    const updatedPositions = positions.map(x => {
+    const umap = new UMAP({ nNeighbors: records.length >= 5 ? nNeighbors : 0, random: () => prng.next(), minDist, nComponents: viewMode === ViewMode.Similarity ? 2 : 1 })
+    let positions;
+    if (records.length < 5) {
+      // Provide default positions or handle the case appropriately
+      positions = records.map((r: any, i: number) => [10 + i, 10]); // Example default positions
+    } else {
+      positions = await umap.fitAsync(nonNullEmbeddings);
+    }
+    const updatedPositions = positions.map((x: any)=> {
       x[0] = (x[0] ?? 0) || 10;
       x[1] = (x[1] ?? 0) || 10;
       return x;
@@ -856,11 +866,15 @@ async function calculatePositionsFromEmbeddings(records: NodeInfo[], nCount: num
       title: nodeInfo.title,
       url: nodeInfo.url
     }));
-    const normalized = normalizePositions(rawPositions.positions, rawPositions.ids, partialNodeInfo, SIDE_GUTTER)
-    const particles = separateParticles(normalized.map((x: any) => ({ ...x, x: x.x, y: x.y })));
+    let normalized = normalizePositions(rawPositions.positions, rawPositions.ids, partialNodeInfo, SIDE_GUTTER)
+    normalized = separateParticles(normalized.map((x: any) => ({ ...x, x: x.x, y: x.y })));
+    if(viewMode === ViewMode.Historical || viewMode === ViewMode.Concentric) {
+      normalized = normalizePositions_(normalized, SIDE_GUTTER)
+    }
+ 
     console.log('normalized particle positions')
-    console.log({ particles })
-    return particles
+    console.log({ normalized })
+    return normalized
   }
   return undefined
 }

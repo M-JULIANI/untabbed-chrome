@@ -38,6 +38,12 @@ export function isPointInsideRectangle(
     return normalizedPositions;
   }
 
+  export function normalizePositions_(records: PartialNodeInfo[], sideGutter: number) {
+    const positions = records.map(x => [x.x, x.y])
+    const indeces = records.map((x, i) => i)
+    return normalizePositions(positions, indeces, records, sideGutter);
+  }
+
   export function separateParticles(particles: PartialNodeInfo[]) {
     const kSpringConstant = 0.1; // Spring constant
     let isOverlapping = true;
