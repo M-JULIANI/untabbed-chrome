@@ -99,3 +99,43 @@ export function isPointInsideRectangle(
 
     return normalizedPositions;
   }
+
+  export function createRadialArrangements(particles: PartialNodeInfo[], sideGutter: number) {
+    const rings = 5;
+    const innerRingElements = Math.ceil(particles.length / rings);
+  
+    const outputMinX = sideGutter;
+    const outputMaxX = window.innerWidth - sideGutter;
+    const outputMinY = sideGutter;
+    const outputMaxY = window.innerHeight - sideGutter;
+  
+    const centerX = (outputMinX + outputMaxX) / 2;
+    const centerY = (outputMinY + outputMaxY) / 2;
+    const maxRadius = Math.min(centerX - outputMinX, centerY - outputMinY);
+  
+    const normalizedPositions = [];
+
+    const outerRingElements = Math.ceil((particles.length - innerRingElements) / rings);
+    const increment = Math.ceil(outerRingElements / rings)
+  
+    let particleIndex = 0;
+    const innerRingRadius = maxRadius / (rings + 1); // Ensure the first ring is not at the center
+
+    let eperRing = innerRingElements;
+  
+    for (let ring = 1; ring <= rings; ring++) {
+      const radius = innerRingRadius * ring;
+      const angleStep = (2 * Math.PI) / eperRing;
+  
+      for (let i = 0; i < eperRing && particleIndex < particles.length; i++, particleIndex++) {
+        const angle = i * angleStep;
+        const x = centerX + radius * Math.cos(angle);
+        const y = centerY + radius * Math.sin(angle);
+  
+        normalizedPositions.push({ ...particles[particleIndex], x, y });
+      }
+      eperRing += increment;
+    }
+  
+    return normalizedPositions;
+}
