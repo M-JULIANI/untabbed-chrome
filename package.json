@@ -40,6 +40,7 @@
     "lucide-react": "^0.407.0",
     "pixi.js": "^7.4.0",
     "prando": "^6.0.1",
+    "prettier": "^3.3.3",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "tailwind-merge": "^2.4.0",
