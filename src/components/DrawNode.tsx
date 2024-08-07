@@ -3,13 +3,13 @@ import defaultFavicon from "./favicon.svg";
 import { Graphics, Sprite, Stage } from "@pixi/react";
 import { PartialNodeInfo } from "@/lib/types";
 
-export type DrawNodeProps = {
-  partialNodeInfo: PartialNodeInfo;
-  hovered: string;
-  colorMap?: any;
-  minLastAccessed: number;
-  maxLastAccessed: number;
-};
+// export type DrawNodeProps = {
+//   partialNodeInfo: PartialNodeInfo | BucketInfo;
+//   hovered: string;
+//   colorMap?: any;
+//   minLastAccessed: number;
+//   maxLastAccessed: number;
+// };
 
 export const DrawNode = ({
   nodeInfo,
@@ -20,7 +20,7 @@ export const DrawNode = ({
   colorMap?: any;
   hovered: string;
 }) => {
-  const { x, y, favIconUrl, id, radius, originalX, originalY } = nodeInfo;
+  const { x, y, id, radius, originalX, originalY, favIconUrl } = nodeInfo;
   const [imageUrl, setImageUrl] = useState(favIconUrl || defaultFavicon);
   const [animatedRadius, setAnimatedRadius] = useState(radius);
   const [animatedPosition, setAnimatedPosition] = useState({ x: originalX || x, y: originalY || y });

@@ -1,71 +1,69 @@
 import React, { useEffect, useRef } from "react";
 import * as d3 from "d3";
 import { hierarchy, treemap, treemapResquarify } from "d3-hierarchy";
+import { BucketInfo } from "@/lib/types";
+import { DrawBucket } from "./DrawBucket";
 
-type Bucket = {
-  name: string;
-  children: string[];
-};
 export const DrawBuckets = ({
   buckets,
   // colorMap,
-  // hovered,
+  hovered,
 }: {
-  buckets: Bucket[];
+  buckets: BucketInfo[];
   // colorMap?: any;
-  // hovered: string;
+  hovered: string;
 }) => {
   if (buckets == null || buckets?.length < 2) {
     return null;
   }
-  console.log("converting to tree");
-  console.log(buckets);
-  const tree = convertToTree(buckets);
-  console.log("tree: ");
-  console.log(tree);
+
+  // console.log("converting to tree");
+  // console.log(buckets);
   return (
-    <div>
-      <TreeMap data={tree} />
-    </div>
+    <>
+      {buckets.map((bucket) => (
+        <DrawBucket key={bucket.id} nodeInfo={bucket} hovered={hovered} />
+      ))}
+    </>
   );
 };
 
-type Node = {
-  name: string;
-  value: number;
-  urls: string[];
-  children: Node[];
-};
+// type Node = {
+//   name: string;
+//   value: number;
+//   urls: string[];
+//   children: Node[];
+// };
 
-const convertToTree = (buckets: Bucket[]): Node => {
-  if (buckets.length === 0) {
-    return {
-      name: "root",
-      value: 0,
-      urls: [],
-      children: [],
-    };
-  }
+// const convertToTree = (buckets: Bucket[]): Node => {
+//   if (buckets.length === 0) {
+//     return {
+//       name: "root",
+//       value: 0,
+//       urls: [],
+//       children: [],
+//     };
+//   }
 
-  const root: Node = {
-    name: "root",
-    value: 0,
-    urls: [],
-    children: [],
-  };
+//   const root: Node = {
+//     name: "root",
+//     value: 0,
+//     urls: [],
+//     children: [],
+//   };
 
-  let currentNode = root;
+//   let currentNode = root;
 
-  buckets?.forEach((bucket) => {
-    const node: Node = {
-      name: bucket.name,
-      value: bucket.children.length,
-      urls: bucket.children,
-      children: [],
-    };
-    currentNode.children.push(node);
-    currentNode = node;
-  });
+//   buckets?.forEach((bucket) => {
+//     const node: Node = {
+//       name: bucket.name,
+//       value: bucket.children.length,
+//       urls: bucket.children,
+//       children: [],
+//     };
+//     currentNode.children.push(node);
+//     currentNode = node;
+//   });
 
-  return root;
-};
+//   return root;
+// };
