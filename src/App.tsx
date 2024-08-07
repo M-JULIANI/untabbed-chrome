@@ -1,6 +1,6 @@
 import "./globals.css";
 import "./App.css";
-import { useState, useEffect, useRef, MouseEventHandler } from "react";
+import { useState, useEffect, useRef, MouseEventHandler, useMemo } from "react";
 import { Stage, Container, Text, Graphics, Sprite } from "@pixi/react";
 import { UMAP } from "umap-js";
 import axios from "axios";
@@ -77,7 +77,8 @@ import {
   DB_VERSION,
   TAB_DELTA_ALLOWED,
 } from "./lib/constants";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { makeBuckets } from "./lib/ai";
+import { DrawBuckets } from "./components/DrawBuckets";
 
 const turndownService = new TurndownService();
 
@@ -93,8 +94,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [loadingDrawing, setLoadingDrawing] = useState(false);
 
-  const [isMounted, setIsMounted] = useState(false);
-  const [selectedViewMode, setSelectedViewMode] = useState(ViewMode.Similarity);
+  const [selectedViewMode, setSelectedViewMode] = useState(ViewMode.Bucket);
   const [selectedNavMode, setSelectedNavMode] = useState(NavigationMode.Semantic);
   const [selectedViewModeReady, setSelectedViewModeReady] = useState(true);
   const [stare, setStare] = useState(2); // Step 2
@@ -113,6 +113,8 @@ function App() {
   const [tooltip, setTooltip] = useState({ visible: false, content: "", url: "", x: 0, y: 0 });
   const [calculated_radius, setCalculatedRadius] = useState(DEFAULT_RADIUS / (radiusDivisor[0] || 10));
   const [activeTabCount, setActiveTabCount] = useState(0);
+  const [bucketContent, setBucketContent] = useState<any>([]);
+  const [bucketCategories, setBucketCategories] = useState<string[]>();
   const { toast } = useToast();
 
   // Example of importing a worker in your application
@@ -189,6 +191,16 @@ function App() {
     return () => tfWorker.terminate(); // Clean up
   }, []);
 
+  useEffect(() => {
+    const fetchBuckets = async () => {
+      const bbb = await makeBuckets(localRecords);
+      setBucketContent(bbb);
+      const categories = Object.keys(bbb);
+      setBucketCategories(categories);
+    };
+
+    fetchBuckets();
+  }, [localRecords]);
   //runs mostly during REFETCHING
   useEffect(() => {
     const runAsync = async () => {
@@ -627,7 +639,11 @@ function App() {
               onMouseMove={onMouseMove}
               onMouseDown={onMouseDown}
             >
-              {results &&
+              {selectedViewMode === ViewMode.Bucket && bucketContent && bucketContent.length > 1 && (
+                <DrawBuckets buckets={bucketContent} />
+              )}
+              {selectedViewMode !== ViewMode.Bucket &&
+                results &&
                 results.map((result: PartialNodeInfo, key: number) => {
                   return <DrawNode key={result?.id || key} nodeInfo={result} hovered={hovered} />;
                 })}
@@ -701,18 +717,11 @@ function App() {
                   </MenubarTrigger>
                   <MenubarContent>
                     <MenubarCheckboxItem
-                      onClick={() => setSelectedNavMode(NavigationMode.Semantic)}
-                      checked={selectedNavMode === NavigationMode.Semantic}
+                      onClick={() => setSelectedViewMode(ViewMode.Bucket)}
+                      checked={selectedViewMode === ViewMode.Bucket}
                     >
-                      Semantic
+                      Bucket
                     </MenubarCheckboxItem>
-                    <MenubarCheckboxItem
-                      onClick={() => setSelectedNavMode(NavigationMode.TaskOriented)}
-                      checked={selectedNavMode === NavigationMode.TaskOriented}
-                    >
-                      Task-Oriented
-                    </MenubarCheckboxItem>
-                    <MenubarSeparator />
                     <MenubarCheckboxItem
                       onClick={() => setSelectedViewMode(ViewMode.Similarity)}
                       checked={selectedViewMode === ViewMode.Similarity}
@@ -720,22 +729,10 @@ function App() {
                       Semantic
                     </MenubarCheckboxItem>
                     <MenubarCheckboxItem
-                      onClick={() => setSelectedViewMode(ViewMode.Concentric)}
-                      checked={selectedViewMode === ViewMode.Concentric}
-                    >
-                      Concentric
-                    </MenubarCheckboxItem>
-                    <MenubarCheckboxItem
                       onClick={() => setSelectedViewMode(ViewMode.Historical)}
                       checked={selectedViewMode === ViewMode.Historical}
                     >
                       Historical
-                    </MenubarCheckboxItem>
-                    <MenubarCheckboxItem
-                      onClick={() => setSelectedViewMode(ViewMode.Bucket)}
-                      checked={selectedViewMode === ViewMode.Bucket}
-                    >
-                      Bucket
                     </MenubarCheckboxItem>
                     {selectedViewMode !== ViewMode.Bucket && (
                       <>
