@@ -197,8 +197,8 @@ async function runEmbeddingPipeline(data) {
                 //console.log(`embedding: \n\n ${embedding}`);
                 return embedding
             }))
-            console.log('promises')
-            console.log(embedPromises)
+            // console.log('promises')
+            // console.log(embedPromises)
 
             return embedPromises
         } catch (error) {

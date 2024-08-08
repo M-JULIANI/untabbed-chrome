@@ -84,6 +84,39 @@ import debounce from "lodash/debounce";
 const turndownService = new TurndownService();
 const prng = new Prando(42);
 
+export function fetchAllRecords(): Promise<any> {
+  console.log("Opening IndexedDB:", INDEXDB_NAME);
+  let request = indexedDB.open(INDEXDB_NAME, DB_VERSION);
+
+  return new Promise((resolve, reject) => {
+    request.onsuccess = function (event) {
+      console.log("IndexedDB opened successfully");
+      let db = (event.target as IDBOpenDBRequest)?.result;
+      console.log("Starting transaction on store:", INDEXDB_STORE);
+      let transaction = db.transaction(INDEXDB_STORE, "readonly");
+      let objectStore = transaction.objectStore(INDEXDB_STORE);
+      console.log("Fetching all records from store:", INDEXDB_STORE);
+
+      let getAllRequest = objectStore.getAll();
+
+      getAllRequest.onsuccess = function (event: any) {
+        let records = event.target.result.map((record: any) => record);
+        resolve(records);
+      };
+
+      getAllRequest.onerror = function (event) {
+        console.error("Error fetching records:", event);
+        reject("Database error: " + event);
+      };
+    };
+
+    request.onerror = function (event) {
+      console.error("IndexedDB open error:", event);
+      reject("IndexedDB open error: " + event);
+    };
+  });
+}
+
 function App() {
   const [results, setResults] = useState<PartialNodeInfo[]>();
   const [minLastAccessed, setMinLastAccessed] = useState(0);
@@ -97,10 +130,8 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [loadingDrawing, setLoadingDrawing] = useState(false);
 
-  const [selectedViewMode, setSelectedViewMode] = useState(ViewMode.Bucket);
-  const [selectedNavMode, setSelectedNavMode] = useState(NavigationMode.Semantic);
+  const [selectedViewMode, setSelectedViewMode] = useState(ViewMode.Similarity);
   const [selectedViewModeReady, setSelectedViewModeReady] = useState(true);
-  const [stare, setStare] = useState(2); // Step 2
   const [localRecords, setLocalRecords] = useState<NodeInfo[]>([]);
   const [status, setStatus] = useState("");
   const [neighborCount, setNeighborCount] = useState([5]);
@@ -127,7 +158,7 @@ function App() {
     if (results) {
       setCalculatedRadius(DEFAULT_RADIUS / (radiusDivisor[0] || 10));
     }
-    toast({ title: "calculatedRadius", description: `calc-${calculated_radius}, divisor-${radiusDivisor[0]}` });
+    //toast({ title: "calculatedRadius", description: `calc-${calculated_radius}, divisor-${radiusDivisor[0]}` });
   }, [results, radiusDivisor]);
 
   useEffect(() => {
@@ -148,6 +179,7 @@ function App() {
   useEffect(() => {
     // can probably be run evertyime there's an event, because
     // the processing step is skipped in tfworker when it has already run
+    let titleUrls: any;
     async function fetchDataAndPostMessage() {
       const tabs = await loadTabs();
       if (tabs.length > 0) {
@@ -171,14 +203,14 @@ function App() {
           };
         });
 
+        const titleUrlPairs = simplifiedTabs.map((tab) => {
+          return { title: tab.title, url: tab.url };
+        });
+        titleUrls = titleUrlPairs;
+
         console.log("Sending tabs w/ text:", simplifiedTabs);
         tfWorker.postMessage({
           operation: "processTabs",
-          data: simplifiedTabs,
-        });
-
-        bucketWorker.postMessage({
-          operation: "bucketTabs",
           data: simplifiedTabs,
         });
       }
@@ -192,19 +224,57 @@ function App() {
     tfWorker.onmessage = function (e) {
       const { result } = e.data;
       console.log("Result from TensorFlow.js computation:", result);
+
+      bucketWorker.postMessage({
+        operation: "bucketTabs",
+        //@ts-ignore
+        data: titleUrls,
+        windowWidth: window.innerWidth,
+        windowHeight: window.innerHeight,
+      });
+
+      toast({
+        title: "Buckets.",
+        description: `Message posted`,
+      });
+
       setDataLoaded(true);
       setStatus("Tabs loaded....");
     };
 
-    tfWorker.onmessage = function (e) {
-      const { result } = e.data;
-      console.log("Result bucket-worker:", result);
+    bucketWorker.onmessage = function (e) {
+      setLoading(true);
+      const { value } = e.data;
+      console.log("Result bucket-worker:", value);
       console.log("BUCKETS LOADED");
-      setBucketsLoaded(true);
+      // setBucketsLoaded(true);
+      console.log("value: ");
+      console.log(value);
+      const result = value;
+
+      if (result == null) {
+        toast({
+          title: "Buckets failed.",
+          description: `failed to load bucket data`,
+        });
+        return;
+      }
+
+      setBucketNodes(result);
+      setLoading(false);
+      setStatus("");
+
+      toast({
+        title: "Buckets loaded.",
+        description: `buncha buckets`,
+      });
       // setStatus("Tabs loaded....");
     };
 
-    return () => tfWorker.terminate(); // Clean up
+    return () => {
+      tfWorker.terminate(); // Clean up
+      bucketWorker.terminate();
+    };
   }, []);
 
   //runs mostly during REFETCHING
@@ -299,9 +369,31 @@ function App() {
     }
   }, [dataLoaded]);
 
-  useEffect(() => {
-    console.log("data loaded: " + dataLoaded);
-  }, [dataLoaded]);
+  // useEffect(() => {
+  //   if (bucketsLoaded) {
+  //     setLoading(true);
+
+  //     const bucketDataString = localStorage.getItem("untabbed-buckets");
+  //     const bucketData = bucketDataString ? JSON.parse(bucketDataString) : null;
+
+  //     if (bucketData == null) {
+  //       toast({
+  //         title: "Buckets failed.",
+  //         description: `failed to load bucket data from local storage`,
+  //       });
+  //       return;
+  //     }
+
+  //     setBucketNodes(bucketData);
+  //     setLoading(false);
+  //     setStatus("");
+
+  //     toast({
+  //       title: "Buckets loaded.",
+  //       description: `buncha buckets`,
+  //     });
+  //   }
+  // }, [bucketsLoaded]);
 
   useEffect(() => {
     const runAsync = async () => {
@@ -450,41 +542,8 @@ function App() {
       return undefined;
     }
   }
-
-  function fetchAllRecords(): Promise<any> {
-    console.log("Opening IndexedDB:", INDEXDB_NAME);
-    let request = indexedDB.open(INDEXDB_NAME, DB_VERSION);
-
-    return new Promise((resolve, reject) => {
-      request.onsuccess = function (event) {
-        console.log("IndexedDB opened successfully");
-        let db = (event.target as IDBOpenDBRequest)?.result;
-        console.log("Starting transaction on store:", INDEXDB_STORE);
-        let transaction = db.transaction(INDEXDB_STORE, "readonly");
-        let objectStore = transaction.objectStore(INDEXDB_STORE);
-        console.log("Fetching all records from store:", INDEXDB_STORE);
-
-        let getAllRequest = objectStore.getAll();
-
-        getAllRequest.onsuccess = function (event: any) {
-          let records = event.target.result.map((record: any) => record);
-          resolve(records);
-        };
-
-        getAllRequest.onerror = function (event) {
-          console.error("Error fetching records:", event);
-          reject("Database error: " + event);
-        };
-      };
-
-      request.onerror = function (event) {
-        console.error("IndexedDB open error:", event);
-        reject("IndexedDB open error: " + event);
-      };
-    });
-  }
-  console.log({ results });
-  console.log("loading: " + loading);
+  // console.log({ results });
+  // console.log("loading: " + loading);
 
   useEffect(() => {
     if (!selectedViewModeReady) setSelectedViewModeReady(true);
@@ -665,7 +724,7 @@ function App() {
               onMouseDown={onMouseDown}
             >
               {selectedViewMode === ViewMode.Bucket && bucketNodes && (
-                <DrawBuckets buckets={bucketNodes} results={results} hovered={hovered} />
+                <DrawBuckets buckets={bucketNodes} hovered={hovered} />
               )}
               {selectedViewMode !== ViewMode.Bucket &&
                 results &&

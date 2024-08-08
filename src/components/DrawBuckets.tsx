@@ -22,7 +22,7 @@ export const DrawBuckets = ({
   return (
     <>
       {buckets.map((bucket) => (
-        <DrawBucket key={bucket.id} nodeInfo={bucket} hovered={hovered} />
+        <DrawBucket key={bucket.id} bucketInfo={bucket} hovered={hovered} />
       ))}
     </>
   );

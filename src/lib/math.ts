@@ -61,6 +61,30 @@ export function normalizePositionsOnly(positions: number[][], sideGutter: number
   return normalizedPositions;
 }
 
+export function normalizePositionsOnlyWithWindow(
+  positions: number[][],
+  sideGutter: number,
+  windowInnerWidth: number,
+  windowInnerHeight: number,
+) {
+  const inputMinX = positions.map((x) => x[0]).reduce((a, b) => Math.min(a, b));
+  const inputMaxX = positions.map((x) => x[0]).reduce((a, b) => Math.max(a, b));
+  const inputMinY = positions.map((x) => x[1]).reduce((a, b) => Math.min(a, b));
+  const inputMaxY = positions.map((x) => x[1]).reduce((a, b) => Math.max(a, b));
+
+  const outputMinX = sideGutter;
+  const outputMaxX = windowInnerWidth - sideGutter;
+  const outputMinY = sideGutter;
+  const outputMaxY = windowInnerHeight - sideGutter;
+
+  const normalizedPositions = positions.map((x, i) => {
+    const newX = remap(x[0], inputMinX, inputMaxX, outputMinX, outputMaxX);
+    const newY = remap(x[1], inputMinY, inputMaxY, outputMinY, outputMaxY);
+    return { x: newX, y: newY };
+  });
+  return normalizedPositions;
+}
+
 export function normalizePositions_(records: PartialNodeInfo[], sideGutter: number) {
   const positions = records.map((x) => [x.x, x.y]);
   const indeces = records.map((x, i) => i);
