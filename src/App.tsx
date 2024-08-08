@@ -552,25 +552,18 @@ function App() {
   const onMouseMove: MouseEventHandler = (e) => {
     if (loading || loadingDrawing) return;
     const point = { x: e.clientX, y: e.clientY };
+    const handleHoverChange = debounce((hoveredId: string, tooltipData: any) => {
+      setHovered(hoveredId);
+      setTooltip(tooltipData);
+    }, 1000); // Adjust the debounce delay as needed
 
     // check if hovering polygon
-    if (results) {
+    if (selectedViewMode !== ViewMode.Bucket && results) {
       const idx = checkHover(point, results);
-      const idxb = checkHover(point, bucketNodes);
-      console.log("over bucket: ", idxb);
-
-      const handleHoverChange = debounce((hoveredId: string, tooltipData: any) => {
-        setHovered(hoveredId);
-        setTooltip(tooltipData);
-      }, 200); // Adjust the debounce delay as needed
-
-      const handleHoverBucket = debounce((hoveredId: string) => {
-        setHovered(hoveredId);
-      }, 200); // Adjust the debounce delay as needed
 
       if (idx !== "") {
         if (hovered !== idx) {
-          const match = results.find((r: any) => r.id === idx);
+          const match = results?.find((r: any) => r.id === idx);
           if (match) {
             handleHoverChange(match.id, {
               visible: true,
@@ -584,9 +577,27 @@ function App() {
           }
         }
       }
+      if (hovered !== "") {
+        handleHoverChange("", {
+          visible: false,
+          content: "",
+          url: "",
+          tabCount: 0,
+          x: e.clientX,
+          y: e.clientY,
+        });
+      }
+    }
+    if (selectedViewMode === ViewMode.Bucket && bucketNodes) {
+      const idxb = checkHover(point, bucketNodes);
+
+      const handleHoverBucket = debounce((hoveredId: string) => {
+        setHovered(hoveredId);
+      }, 200); // Adjust the debounce delay as needed
+
       if (idxb !== "") {
         if (hovered !== idxb) {
-          const bucketMatch = bucketNodes.find((r: any) => r.id === idxb);
+          const bucketMatch = bucketNodes?.find((r: any) => r.id === idxb);
           if (bucketMatch) {
             handleHoverBucket(bucketMatch.id);
             return;
@@ -799,7 +810,7 @@ function App() {
                       onClick={() => setSelectedViewMode(ViewMode.Historical)}
                       checked={selectedViewMode === ViewMode.Historical}
                     >
-                      Historical
+                      Chronological
                     </MenubarCheckboxItem>
                     {selectedViewMode !== ViewMode.Bucket && (
                       <>
