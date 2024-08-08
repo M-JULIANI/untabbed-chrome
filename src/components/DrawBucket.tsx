@@ -49,8 +49,8 @@ export const DrawBucket = ({
       g.endFill();
       const tabCount = `${bucketInfo.children.length} tabs`;
 
-      const maxFontSize = 40;
-      const baseFontSize = 24;
+      const maxFontSize = 20;
+      const baseFontSize = 16;
       const text = new PIXI.Text(`${title}\n${tabCount}`, {
         fontFamily: "Inter",
         fontSize: baseFontSize, // Increase the font size for better resolution
