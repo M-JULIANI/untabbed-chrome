@@ -6,15 +6,15 @@ import * as PIXI from "pixi.js";
 import { DrawNodeNoAnimation } from "./DrawNodeNoAnimation";
 
 export const DrawBucket = ({
-  nodeInfo,
+  bucketInfo,
   colorMap,
   hovered,
 }: {
-  nodeInfo: BucketInfo;
+  bucketInfo: BucketInfo;
   colorMap?: any;
   hovered: string;
 }) => {
-  const { x, y, id, title, radius } = nodeInfo;
+  const { x, y, id, title, radius } = bucketInfo;
   const draw = useCallback(
     (g: any) => {
       g.clear();
@@ -28,12 +28,8 @@ export const DrawBucket = ({
       g.beginFill("#E9E9E9");
       g.drawCircle(x, y, radius);
       g.endFill();
-
-      if (hovered === id) {
-        return;
-      }
     },
-    [x, y, hovered],
+    [x, y, hovered, radius],
   );
 
   // console.log({radius})
@@ -51,7 +47,7 @@ export const DrawBucket = ({
       g.drawCircle(x, y, safeguarded_rad);
 
       g.endFill();
-      const tabCount = `${nodeInfo.children.length} tabs`;
+      const tabCount = `${bucketInfo.children.length} tabs`;
 
       const maxFontSize = 40;
       const baseFontSize = 24;
@@ -111,7 +107,7 @@ export const DrawBucket = ({
   return (
     <>
       <Graphics draw={draw} />
-      {nodeInfo.children.map((child: PartialNodeInfo, i) => (
+      {bucketInfo.children.map((child: PartialNodeInfo, i) => (
         <DrawNodeNoAnimation key={i} nodeInfo={child} hovered={hovered} />
       ))}
       {hovered !== id && (

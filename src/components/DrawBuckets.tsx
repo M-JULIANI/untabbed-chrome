@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import * as d3 from "d3";
 import { hierarchy, treemap, treemapResquarify } from "d3-hierarchy";
-import { BucketInfo } from "@/lib/types";
+import { BucketInfo, PartialNodeInfo } from "@/lib/types";
 import { DrawBucket } from "./DrawBucket";
 
 export const DrawBuckets = ({
