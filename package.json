@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.16.0",
     "@pixi-essentials/svg": "^2.0.1",
     "@pixi/filter-drop-shadow": "^5.2.0",
     "@pixi/graphics-smooth": "^1.1.0",
@@ -37,9 +38,12 @@
     "axios": "^1.7.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
+    "d3": "^7.9.0",
+    "lodash": "^4.17.21",
     "lucide-react": "^0.407.0",
     "pixi.js": "^7.4.0",
     "prando": "^6.0.1",
+    "prettier": "^3.3.3",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
     "tailwind-merge": "^2.4.0",
@@ -50,6 +54,8 @@
   },
   "devDependencies": {
     "@crxjs/vite-plugin": "^1.0.14",
+    "@types/d3": "^7.4.3",
+    "@types/lodash": "^4.17.7",
     "@types/react": "^18.0.0",
     "@types/react-dom": "^18.0.0",
     "@types/turndown": "^5.0.4",

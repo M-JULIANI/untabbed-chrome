@@ -293,7 +293,7 @@ async function initializeDatabase() {
 
 
 self.onmessage = async (e) => {
-    console.log('Worker: Message received from main script');
+    console.log('TF Worker: Message received from main script');
     const operation = e.data.operation;
     const tabs = e.data.data
     try {

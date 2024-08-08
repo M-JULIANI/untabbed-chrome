@@ -1,6 +1,6 @@
 {
     "manifest_version": 3,
-    "name": "Untabbed-Chrome",
+    "name": "Untabbed",
     "version": "1.0.0",
     "permissions": [
         "storage",
@@ -10,8 +10,8 @@
         "sidePanel"
     ],
     "action": {
-        "default_title": "Untabbed-Chrome",
-             "default_popup": "index.html"
+        "default_title": "Untabbed",
+        "default_popup": "index.html"
     },
     "background": {
         "service_worker": "src/service-worker.js"
@@ -25,6 +25,6 @@
     },
     "side_panel": {
         "default_path": "index.html",
-        "default_title": "Untabbed-Chrome"
+        "default_title": "Untabbed"
     }
 }
