@@ -229,8 +229,8 @@ function App() {
         operation: "bucketTabs",
         //@ts-ignore
         data: titleUrls,
-        windowWidth: window.innerWidth,
-        windowHeight: window.innerHeight,
+        windowInnerWidth: window.innerWidth,
+        windowInnerHeight: window.innerHeight,
       });
 
       toast({
