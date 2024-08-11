@@ -1,6 +1,6 @@
 import "./globals.css";
 import "./App.css";
-import { useState, useEffect, useRef, MouseEventHandler, useMemo } from "react";
+import { useState, useEffect, useRef, MouseEventHandler, useMemo, useContext } from "react";
 import { Stage, Container, Text, Graphics, Sprite } from "@pixi/react";
 import { UMAP } from "umap-js";
 import axios from "axios";
@@ -23,7 +23,7 @@ import {
 } from "./components/ui/sheet";
 import { Button } from "./components/ui/button";
 import { Label } from "./components/ui/label";
-import { Input } from "./components/ui/inputs";
+import { Input } from "./components/ui/input";
 import {
   Select,
   SelectContent,
@@ -34,52 +34,37 @@ import {
   SelectValue,
 } from "./components/ui/select";
 import { Separator } from "./components/ui/separator";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "./components/ui/accordion";
-import { DropShadowFilter } from "@pixi/filter-drop-shadow";
-import {
-  Menubar,
-  MenubarCheckboxItem,
-  MenubarContent,
-  MenubarItem,
-  MenubarMenu,
-  MenubarRadioGroup,
-  MenubarRadioItem,
-  MenubarSeparator,
-  MenubarShortcut,
-  MenubarSub,
-  MenubarSubContent,
-  MenubarSubTrigger,
-  MenubarTrigger,
-} from "./components/ui/menubar";
-import { Slider } from "./components/ui/slider";
-import { stubResults } from "./lib/data/stubResults";
-import { stubResultsLarge } from "./lib/data/stubResultsLarge";
-import { stubTabs } from "./lib/data/stubTabs";
 import { DrawNode } from "./components/DrawNode";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/ui/tooltip";
 import { cn } from "./lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import {
   createRadialArrangements,
   isPointInsideRectangle,
   normalizePositions,
-  normalizePositions_,
-  normalizePositionsOnly,
   remap,
   separateParticles,
   separateParticlesVertically,
 } from "./lib/math";
-import { BucketInfo, NavigationMode, NodeInfo, PartialNodeInfo, Particle, ViewMode } from "./lib/types";
+import { BucketInfo, NodeInfo, PartialNodeInfo, ViewMode } from "./lib/types";
 import {
   SIDE_GUTTER,
   DEFAULT_RADIUS,
   INDEXDB_NAME,
   INDEXDB_STORE,
   DB_VERSION,
-  TAB_DELTA_ALLOWED,
+  MAX_BUCKETS,
+  generateGradientColors,
 } from "./lib/constants";
 import { DrawBuckets } from "./components/DrawBuckets";
 import debounce from "lodash/debounce";
+import { BucketLegend } from "./components/BucketLegend";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./components/ui/tabs";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./components/ui/card";
+import { Switch } from "./components/ui/switch";
+import { TodoItem, TodoList } from "./components/TodoList";
+import { CustomStage, useHovered } from "./contexts/HoveredContext";
+import { ViewModeMenu } from "./components/ViewModeMenu";
+import { _todos } from "./data/todo-stub";
 
 const turndownService = new TurndownService();
 const prng = new Prando(42);
@@ -116,7 +101,6 @@ export function fetchAllRecords(): Promise<any> {
     };
   });
 }
-
 function App() {
   const [results, setResults] = useState<PartialNodeInfo[]>();
   const [minLastAccessed, setMinLastAccessed] = useState(0);
@@ -127,10 +111,9 @@ function App() {
   });
   const [dataLoaded, setDataLoaded] = useState(false);
   const [bucketsLoaded, setBucketsLoaded] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [loadingDrawing, setLoadingDrawing] = useState(false);
 
-  const [selectedViewMode, setSelectedViewMode] = useState(ViewMode.Similarity);
   const [selectedViewModeReady, setSelectedViewModeReady] = useState(true);
   const [localRecords, setLocalRecords] = useState<NodeInfo[]>([]);
   const [status, setStatus] = useState("");
@@ -143,12 +126,17 @@ function App() {
   const [resizeFlag, setResizeFlag] = useState(false);
   const ref = useRef(null);
   const [bounds, setBounds] = useState({ x: 0, y: 0, width: 0, height: 0 });
-  const [hovered, setHovered] = useState<string>("");
   const [tooltip, setTooltip] = useState({ visible: false, content: "", url: "", x: 0, y: 0, tabCount: 0 });
   const [calculated_radius, setCalculatedRadius] = useState(DEFAULT_RADIUS / (radiusDivisor[0] || 10));
   const [activeTabCount, setActiveTabCount] = useState(0);
   const [bucketNodes, setBucketNodes] = useState<BucketInfo[]>([]); // the nodes themselves, for drawing purposes
+  const [settings, setSettings] = useState({
+    tabs: { deduplicate: true, autoclose: true, daysAutoclose: "5" },
+    todos: { maxListLength: "10", resurfaceCount: "3", closeOnComplete: true, email: { enabled: false, address: "" } },
+  });
   const { toast } = useToast();
+
+  const { hovered, setHovered, selectedViewMode } = useHovered();
 
   // Example of importing a worker in your application
   const tfWorker = new Worker(new URL("tf-worker.js", import.meta.url), { type: "module" });
@@ -160,21 +148,6 @@ function App() {
     }
     //toast({ title: "calculatedRadius", description: `calc-${calculated_radius}, divisor-${radiusDivisor[0]}` });
   }, [results, radiusDivisor]);
-
-  useEffect(() => {
-    const updateBounds = () => {
-      if (ref.current) {
-        //@ts-ignore
-        const rect = ref.current.getBoundingClientRect();
-        setBounds({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
-      }
-    };
-
-    window.addEventListener("resize", updateBounds);
-    updateBounds();
-
-    return () => window.removeEventListener("resize", updateBounds);
-  }, []);
 
   useEffect(() => {
     // can probably be run evertyime there's an event, because
@@ -266,7 +239,12 @@ function App() {
 
       toast({
         title: "Buckets loaded.",
-        description: `buncha buckets`,
+        description: `'Bucket' view mode now available!`,
+      });
+
+      toast({
+        title: "Today's to-do list is ready!",
+        description: `Open to-do tab to view it.`,
       });
       // setStatus("Tabs loaded....");
     };
@@ -276,6 +254,51 @@ function App() {
       bucketWorker.terminate();
     };
   }, []);
+
+  useEffect(() => {
+    const handleWorkerMessage = async (message: any) => {
+      console.log({ message });
+      if (results) {
+        if (message.type === "TAB_CREATED") {
+          toast({
+            title: "Tab CREATED",
+            description: `${message.tabId}`,
+          });
+
+          const tab = {
+            id: message.id,
+            title: message.title,
+            url: message.url,
+            favIconUrl: message.favIconUrl,
+            lastAccessed: message.lastAccessed,
+            text: "",
+          };
+          //process single tab
+          tfWorker.postMessage({
+            operation: "processTabs",
+            data: tab,
+          });
+          console.log(`Tab created with ID: ${message.tabId}`);
+        } else if (message.type === "TAB_REMOVED") {
+          setLoadingDrawing(true);
+          setResults((r) => r?.filter((x) => x.id !== message.id));
+          setLoadingDrawing(false);
+          console.log(`Tab removed with ID: ${message.id}`);
+          toast({
+            title: "Tab REMOVED",
+            description: `${message.id}`,
+          });
+        }
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(handleWorkerMessage);
+
+    // Cleanup the listener on component unmount
+    return () => {
+      chrome.runtime.onMessage.removeListener(handleWorkerMessage);
+    };
+  }, [results]);
 
   //runs mostly during REFETCHING
   useEffect(() => {
@@ -369,31 +392,36 @@ function App() {
     }
   }, [dataLoaded]);
 
-  // useEffect(() => {
-  //   if (bucketsLoaded) {
-  //     setLoading(true);
+  useEffect(() => {
+    if (bucketsLoaded) {
+      setLoading(true);
 
-  //     const bucketDataString = localStorage.getItem("untabbed-buckets");
-  //     const bucketData = bucketDataString ? JSON.parse(bucketDataString) : null;
+      const bucketDataString = localStorage.getItem("untabbed-buckets");
+      const bucketData = bucketDataString ? JSON.parse(bucketDataString) : null;
 
-  //     if (bucketData == null) {
-  //       toast({
-  //         title: "Buckets failed.",
-  //         description: `failed to load bucket data from local storage`,
-  //       });
-  //       return;
-  //     }
+      if (bucketData == null) {
+        toast({
+          title: "Buckets failed.",
+          description: `failed to load bucket data from local storage`,
+        });
+        return;
+      }
 
-  //     setBucketNodes(bucketData);
-  //     setLoading(false);
-  //     setStatus("");
+      setBucketNodes(bucketData);
+      setLoading(false);
+      setStatus("");
 
-  //     toast({
-  //       title: "Buckets loaded.",
-  //       description: `buncha buckets`,
-  //     });
-  //   }
-  // }, [bucketsLoaded]);
+      toast({
+        title: "Buckets loaded.",
+        description: `buncha buckets`,
+      });
+    }
+  }, [bucketsLoaded]);
+
+  useEffect(() => {
+    console.log("and the bucket nodes are set to:");
+    console.log(bucketNodes);
+  }, [bucketNodes]);
 
   useEffect(() => {
     const runAsync = async () => {
@@ -451,6 +479,9 @@ function App() {
 
     if (localRecords.length > 0 && selectedViewModeReady) {
       console.log("rerunning WITH NEW VIEW MODE");
+      // if (selectedViewMode === ViewMode.Bucket) {
+      //   return;
+      // }
       setSelectedViewModeReady(false);
       setLoadingDrawing(true);
       runAsync().then(() => {
@@ -461,57 +492,18 @@ function App() {
   }, [neighborCountReady, minDistanceReady, radiusDivisorReady, resizeFlag, localRecords, selectedViewModeReady]);
 
   useEffect(() => {
-    const handleWorkerMessage = async (message: any) => {
-      console.log({ message });
-      if (results) {
-        if (message.type === "TAB_CREATED") {
-          toast({
-            title: "Tab CREATED",
-            description: `${message.tabId}`,
-          });
-
-          const tab = {
-            id: message.id,
-            title: message.title,
-            url: message.url,
-            favIconUrl: message.favIconUrl,
-            lastAccessed: message.lastAccessed,
-            text: "",
-          };
-          //process single tab
-          tfWorker.postMessage({
-            operation: "processTabs",
-            data: tab,
-          });
-          console.log(`Tab created with ID: ${message.tabId}`);
-        } else if (message.type === "TAB_REMOVED") {
-          setLoadingDrawing(true);
-          setResults((r) => r?.filter((x) => x.id !== message.id));
-          setLoadingDrawing(false);
-          console.log(`Tab removed with ID: ${message.id}`);
-          toast({
-            title: "Tab REMOVED",
-            description: `${message.id}`,
-          });
-        }
-      }
-    };
-
-    chrome.runtime.onMessage.addListener(handleWorkerMessage);
-
-    // Cleanup the listener on component unmount
-    return () => {
-      chrome.runtime.onMessage.removeListener(handleWorkerMessage);
-    };
-  }, [results]);
-
-  useEffect(() => {
     function handleResize() {
       setDimensions({
         height: window.innerHeight,
         width: window.innerWidth,
       });
       setResizeFlag(true);
+
+      if (ref.current) {
+        //@ts-ignore
+        const rect = ref.current.getBoundingClientRect();
+        setBounds({ x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+      }
     }
 
     window.addEventListener("resize", handleResize);
@@ -552,29 +544,25 @@ function App() {
   const onMouseMove: MouseEventHandler = (e) => {
     if (loading || loadingDrawing) return;
     const point = { x: e.clientX, y: e.clientY };
-    const handleHoverChange = debounce((hoveredId: string, tooltipData: any) => {
+    const handleHoverChange = (hoveredId: string, tooltipData: any) => {
       setHovered(hoveredId);
       setTooltip(tooltipData);
-    }, 1000); // Adjust the debounce delay as needed
+    }; // Adjust the debounce delay as needed
 
     // check if hovering polygon
     if (selectedViewMode !== ViewMode.Bucket && results) {
       const idx = checkHover(point, results);
-
-      if (idx !== "") {
-        if (hovered !== idx) {
-          const match = results?.find((r: any) => r.id === idx);
-          if (match) {
-            handleHoverChange(match.id, {
-              visible: true,
-              content: match?.title || "",
-              url: match?.url || "",
-              tabCount: 0,
-              x: match.x,
-              y: match.y,
-            });
-            return;
-          }
+      if (hovered !== idx) {
+        const match = results?.find((r: any) => r.id === idx);
+        if (match) {
+          handleHoverChange(match.id, {
+            visible: true,
+            content: match?.title || "",
+            url: match?.url || "",
+            x: match.x,
+            y: match.y,
+          });
+          return;
         }
       }
       if (hovered !== "") {
@@ -589,22 +577,21 @@ function App() {
       }
     }
     if (selectedViewMode === ViewMode.Bucket && bucketNodes) {
-      const idxb = checkHover(point, bucketNodes);
-
-      const handleHoverBucket = debounce((hoveredId: string) => {
-        setHovered(hoveredId);
-      }, 200); // Adjust the debounce delay as needed
-
-      if (idxb !== "") {
-        if (hovered !== idxb) {
-          const bucketMatch = bucketNodes?.find((r: any) => r.id === idxb);
-          if (bucketMatch) {
-            handleHoverBucket(bucketMatch.id);
-            return;
-          }
+      const bucketChildren = bucketNodes.map((bucketNode) => bucketNode.children).flat();
+      const idx = checkHover(point, bucketChildren);
+      if (hovered !== idx) {
+        const match = bucketChildren?.find((r: any) => r.id === idx);
+        if (match) {
+          handleHoverChange(match.id, {
+            visible: true,
+            content: match?.title || "",
+            url: match?.url || "",
+            x: match.x,
+            y: match.y,
+          });
+          return;
         }
       }
-
       if (hovered !== "") {
         handleHoverChange("", {
           visible: false,
@@ -662,12 +649,9 @@ function App() {
     }
   };
 
-  useEffect(() => {
-    toast({
-      title: "view mode changed.",
-      description: `${selectedViewMode}`,
-    });
-  }, [selectedViewMode]);
+  const categoryColors = useMemo(() => {
+    return generateGradientColors(bucketNodes.length);
+  }, [bucketNodes]);
 
   return (
     <>
@@ -726,178 +710,212 @@ function App() {
               </div>
             </div>
           ) : null}
-          <div style={{ position: "relative" }}>
-            <Stage
-              width={dimensions.width}
-              height={dimensions.height}
-              options={{ background: "#202025" }}
-              onMouseMove={onMouseMove}
-              onMouseDown={onMouseDown}
-            >
-              {selectedViewMode === ViewMode.Bucket && bucketNodes && (
-                <DrawBuckets buckets={bucketNodes} hovered={hovered} />
-              )}
-              {selectedViewMode !== ViewMode.Bucket &&
-                results &&
-                results.map((result: PartialNodeInfo, key: number) => {
-                  return <DrawNode key={result?.id || key} nodeInfo={result} hovered={hovered} />;
-                })}
-            </Stage>
-            {tooltip.visible && (
-              <div
-                style={{
-                  position: "absolute",
-                  left: tooltip.x,
-                  top: tooltip.y,
-                  padding: "5px",
-                  background: "red",
-                  border: "1px solid black",
-                  borderRadius: "5px",
-                  pointerEvents: "none", // Prevents the tooltip from interfering with mouse events
-                  transform: `translate(-50%, -${calculated_radius + 20}px)`, // Adjusts the position to be above the cursor
-                  whiteSpace: "nowrap",
-                }}
-                className={cn(
-                  "z-50 overflow-hidden rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
-                )}
-              >
-                <div className="flex-col">
-                  <div
-                    style={{
-                      fontWeight: "bold",
-                      textOverflow: "ellipsis",
-                      overflow: "hidden",
-                      whiteSpace: "nowrap",
-                      maxWidth: "200px",
-                    }}
-                  >
-                    {tooltip.content}
-                  </div>
-                  <div
-                    style={{
-                      textOverflow: "ellipsis",
-                      overflow: "hidden",
-                      whiteSpace: "nowrap",
-                      maxWidth: "200px",
-                    }}
-                  >
-                    {tooltip.url || tooltip.tabCount + " tabs"}
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div className="popover-top-right flex flex-col gap-2 px-8 py-4" style={{ margin: "10px 20px" }}>
-              <Menubar className="outline-menu" style={{ outlineColor: "#E9E9E9" }}>
-                <MenubarMenu>
-                  <MenubarTrigger className="hover:bg-transparent active:bg-transparent" style={{ color: "#E9E9E9" }}>
-                    View Mode
-                  </MenubarTrigger>
-                  <MenubarContent>
-                    <MenubarCheckboxItem
-                      onClick={() => setSelectedViewMode(ViewMode.Bucket)}
-                      checked={selectedViewMode === ViewMode.Bucket}
+          <>
+            <div className="flex justify-center py-2">
+              <Tabs defaultValue="map" className="w-[400px]">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="map">Map</TabsTrigger>
+                  <TabsTrigger value="tasks">To-do</TabsTrigger>
+                  <TabsTrigger value="settings">Settings</TabsTrigger>
+                </TabsList>
+                <TabsContent value="map" className="flex justify-center w-full">
+                  <div style={{ position: "relative" }}>
+                    <CustomStage
+                      className="rounded-xl"
+                      width={dimensions.width - SIDE_GUTTER * 0.25}
+                      height={dimensions.height - SIDE_GUTTER * 0.25 - 30}
+                      options={{ background: "#202025" }}
+                      onMouseMove={onMouseMove}
+                      onMouseDown={onMouseDown}
                     >
-                      Bucket
-                    </MenubarCheckboxItem>
-                    <MenubarCheckboxItem
-                      onClick={() => setSelectedViewMode(ViewMode.Similarity)}
-                      checked={selectedViewMode === ViewMode.Similarity}
-                    >
-                      Semantic
-                    </MenubarCheckboxItem>
-                    <MenubarCheckboxItem
-                      onClick={() => setSelectedViewMode(ViewMode.Historical)}
-                      checked={selectedViewMode === ViewMode.Historical}
-                    >
-                      Chronological
-                    </MenubarCheckboxItem>
-                    {selectedViewMode !== ViewMode.Bucket && (
-                      <>
-                        <MenubarSeparator />
-                        <div className="flex flex-col justify-between gap-6 my-4 ml-8">
-                          <div className="grid grid-cols-2 items-center gap-4 mr-8">
-                            <Label htmlFor="width">Distance</Label>
-                            <Slider
-                              className={"flex-grow"}
-                              min={0.001}
-                              defaultValue={minDistance}
-                              step={0.001}
-                              max={1.0}
-                              onValueChange={(v) => setMinDistance(v)}
-                              onBlur={(v) => {
-                                setMinDistanceReady(true);
-                              }}
-                            />
+                      {selectedViewMode === ViewMode.Bucket && bucketNodes && bucketNodes.length > 0 && (
+                        <DrawBuckets buckets={bucketNodes} categoryColors={categoryColors} />
+                      )}
+                      {selectedViewMode !== ViewMode.Bucket &&
+                        results &&
+                        results.map((result: PartialNodeInfo, key: number) => {
+                          return <DrawNode key={result?.id || key} nodeInfo={result} />;
+                        })}
+                    </CustomStage>
+                    {tooltip.visible && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          left: tooltip.x,
+                          top: tooltip.y,
+                          padding: "5px",
+                          background: "red",
+                          border: "1px solid black",
+                          borderRadius: "5px",
+                          pointerEvents: "none", // Prevents the tooltip from interfering with mouse events
+                          transform: `translate(-50%, -${calculated_radius + 20}px)`, // Adjusts the position to be above the cursor
+                          whiteSpace: "nowrap",
+                        }}
+                        className={cn(
+                          "z-50 overflow-hidden rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2",
+                        )}
+                      >
+                        <div className="flex-col">
+                          <div
+                            style={{
+                              fontWeight: "bold",
+                              textOverflow: "ellipsis",
+                              overflow: "hidden",
+                              whiteSpace: "nowrap",
+                              maxWidth: "200px",
+                            }}
+                          >
+                            {tooltip.content}
                           </div>
-                          <div className="grid grid-cols-2 items-center gap-4 mr-8">
-                            <Label htmlFor="width">Neighbors</Label>
-                            <Slider
-                              className={"flex-grow"}
-                              min={3}
-                              defaultValue={neighborCount}
-                              step={1}
-                              max={20}
-                              onValueChange={(v) => setNeighborCount(v)}
-                              onBlur={(v) => {
-                                setNeighborCountReady(true);
-                              }}
-                            />
-                          </div>
-                          <div className="grid grid-cols-2 items-center gap-4 mr-8">
-                            <Label htmlFor="width">Radius Divisor</Label>
-                            <Slider
-                              className={"flex-grow"}
-                              min={10}
-                              defaultValue={radiusDivisor}
-                              step={1}
-                              max={20}
-                              onValueChange={(v) => setRadiusDivisor(v)}
-                              onBlur={(v) => {
-                                setRadiusDivisorReady(true);
-                              }}
-                            />
+                          <div
+                            style={{
+                              textOverflow: "ellipsis",
+                              overflow: "hidden",
+                              whiteSpace: "nowrap",
+                              maxWidth: "200px",
+                            }}
+                          >
+                            {tooltip.url || tooltip.tabCount + " tabs"}
                           </div>
                         </div>
-                      </>
+                      </div>
                     )}
-                  </MenubarContent>
-                </MenubarMenu>
-                <MenubarMenu>
-                  <MenubarTrigger className="hover:bg-transparent active:bg-transparent" style={{ color: "#E9E9E9" }}>
-                    Settings
-                  </MenubarTrigger>
-                  <MenubarContent>
-                    <MenubarRadioGroup value="benoit">
-                      <MenubarRadioItem value="andy">Andy</MenubarRadioItem>
-                      <MenubarRadioItem value="benoit">Benoit</MenubarRadioItem>
-                      <MenubarRadioItem value="Luis">Luis</MenubarRadioItem>
-                    </MenubarRadioGroup>
-                    <MenubarSeparator />
-                    <MenubarItem inset>Edit...</MenubarItem>
-                    <MenubarSeparator />
-                    <MenubarItem inset>Add Profile...</MenubarItem>
-                  </MenubarContent>
-                </MenubarMenu>
-                <MenubarMenu>
-                  <MenubarTrigger className="hover:bg-transparent active:bg-transparent" style={{ color: "#E9E9E9" }}>
-                    Analytics
-                  </MenubarTrigger>
-                  <MenubarContent>
-                    <MenubarRadioGroup value="benoit">
-                      <MenubarRadioItem value="andy">Andy</MenubarRadioItem>
-                      <MenubarRadioItem value="benoit">Benoit</MenubarRadioItem>
-                      <MenubarRadioItem value="Luis">Luis</MenubarRadioItem>
-                    </MenubarRadioGroup>
-                    <MenubarSeparator />
-                    <MenubarItem inset>Edit...</MenubarItem>
-                    <MenubarSeparator />
-                    <MenubarItem inset>Add Profile...</MenubarItem>
-                  </MenubarContent>
-                </MenubarMenu>
-              </Menubar>
+
+                    <div className="popover-top-right flex flex-col gap-2 px-4 py-4">
+                      <ViewModeMenu disabled={bucketNodes.length < 1} />
+                      {selectedViewMode === ViewMode.Bucket && bucketNodes && bucketNodes.length > 0 && (
+                        <div>
+                          <BucketLegend
+                            legendColors={categoryColors.slice(0, Math.min(MAX_BUCKETS, bucketNodes.length))}
+                            categories={bucketNodes
+                              .slice(0, Math.min(MAX_BUCKETS, bucketNodes.length))
+                              .map((bucket) => bucket.title)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </TabsContent>
+                <TabsContent value="tasks" className="tabs-content">
+                  <TodoList todos={_todos} />
+                </TabsContent>
+                <TabsContent value="settings" className="tabs-content">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="text-xl">Tab settings</CardTitle>
+                      <CardDescription>Change tab settings.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center space-x-4">
+                        <Switch
+                          checked={settings.tabs.deduplicate}
+                          onCheckedChange={() =>
+                            setSettings((s) => ({ ...s, tabs: { ...s.tabs, deduplicate: !s.tabs.deduplicate } }))
+                          }
+                        />
+                        <Label htmlFor="settings-deduplicate">Deduplicate tabs</Label>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <Switch
+                          checked={settings.tabs.autoclose}
+                          onCheckedChange={() =>
+                            setSettings((s) => ({ ...s, tabs: { ...s.tabs, autoclose: !s.tabs.autoclose } }))
+                          }
+                        />
+                        <Label htmlFor="settings-autoclose">Autoclose tabs after</Label>
+                        {settings.tabs.autoclose && (
+                          <div className="flex items-center space-x-4">
+                            <Select
+                              value={settings.tabs.daysAutoclose}
+                              onValueChange={(v) =>
+                                setSettings((s) => ({ ...s, tabs: { ...s.tabs, daysAutoclose: v } }))
+                              }
+                            >
+                              <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="5" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectGroup>
+                                  <SelectItem value="1">1</SelectItem>
+                                  <SelectItem value="3">3</SelectItem>
+                                  <SelectItem value="5">5</SelectItem>
+                                  <SelectItem value="30">30</SelectItem>
+                                  <SelectItem value="60">60</SelectItem>
+                                </SelectGroup>
+                              </SelectContent>
+                            </Select>
+                            <Label htmlFor="settings-autoclose-suffix">days</Label>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                    <Separator />
+                    <CardHeader>
+                      <CardTitle className="text-xl">To-do settings</CardTitle>
+                      <CardDescription>Change to-do settings.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex items-center space-x-4">
+                        <Label htmlFor="max-todo-length-label">Max to-do list length: </Label>
+                        <Select
+                          value={settings.todos.maxListLength}
+                          onValueChange={(v) => setSettings((s) => ({ ...s, todos: { ...s.todos, maxListLength: v } }))}
+                        >
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="6" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              <SelectItem value="3">3</SelectItem>
+                              <SelectItem value="6">6</SelectItem>
+                              <SelectItem value="10">10</SelectItem>
+                              <SelectItem value="15">15</SelectItem>
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <Label htmlFor="resurface-tabs-label">Don't resurface to-do after it has been shown</Label>
+                        <Select
+                          value={settings.todos.resurfaceCount}
+                          onValueChange={(v) =>
+                            setSettings((s) => ({ ...s, todos: { ...s.todos, resurfaceCount: v } }))
+                          }
+                        >
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="3" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectGroup>
+                              <SelectItem value="3">3</SelectItem>
+                              <SelectItem value="6">6</SelectItem>
+                              <SelectItem value="9">9</SelectItem>
+                            </SelectGroup>
+                          </SelectContent>
+                        </Select>
+                        <Label htmlFor="resurface-tabs-label-suffix">times</Label>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <Switch
+                          checked={settings.todos.closeOnComplete}
+                          onCheckedChange={() =>
+                            setSettings((s) => ({
+                              ...s,
+                              todos: { ...s.todos, closeOnComplete: !s.todos.closeOnComplete },
+                            }))
+                          }
+                        />
+                        <Label htmlFor="close-on-complete">Close tab once to-do has been marked as done.</Label>
+                      </div>
+                    </CardContent>
+                    {/* <CardFooter>
+                      <Button>Save password</Button>
+                    </CardFooter> */}
+                  </Card>
+                </TabsContent>
+              </Tabs>
             </div>
-          </div>
+          </>
         </>
       )}
     </>
@@ -909,7 +927,7 @@ const checkHover = (point: { x: number; y: number }, results: (PartialNodeInfo |
   results?.forEach((result: any) => {
     if (
       isPointInsideRectangle(point, {
-        position: { x: result.x, y: result.y },
+        position: { x: result.x + 50, y: result.y + 100 },
         length: result?.radius || 1,
         height: result?.radius || 1,
       })
@@ -1020,12 +1038,10 @@ async function calculatePositionsFromEmbeddings(
       url: nodeInfo.url,
     }));
     let normalized = normalizePositions(rawPositions.positions, rawPositions.ids, partialNodeInfo, SIDE_GUTTER);
-    normalized = separateParticles(normalized.map((x: any) => ({ ...x, x: x.x, y: x.y }))) as PartialNodeInfo[];
     if (viewMode === ViewMode.Historical) {
       normalized = separateParticlesVertically(normalized, SIDE_GUTTER);
-    } else if (viewMode === ViewMode.Concentric) {
-      normalized = createRadialArrangements(normalized, SIDE_GUTTER);
     }
+    normalized = separateParticles(normalized.map((x: any) => ({ ...x, x: x.x, y: x.y }))) as PartialNodeInfo[];
 
     console.log("normalized particle positions");
     console.log({ normalized });

@@ -1,28 +1,29 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, Component, ErrorInfo, ReactNode } from "react";
 import * as d3 from "d3";
 import { hierarchy, treemap, treemapResquarify } from "d3-hierarchy";
 import { BucketInfo, PartialNodeInfo } from "@/lib/types";
 import { DrawBucket } from "./DrawBucket";
+import { MAX_BUCKETS } from "@/lib/constants";
 
 export const DrawBuckets = ({
   buckets,
   // colorMap,
-  hovered,
+  categoryColors,
 }: {
   buckets: BucketInfo[];
   // colorMap?: any;
-  hovered: string;
+  categoryColors: string[];
 }) => {
   if (buckets == null || buckets?.length < 2) {
     return null;
   }
 
-  // console.log("converting to tree");
-  // console.log(buckets);
+  const displayedBuckets = buckets.slice(0, Math.min(MAX_BUCKETS, buckets.length));
+
   return (
     <>
-      {buckets.map((bucket) => (
-        <DrawBucket key={bucket.id} bucketInfo={bucket} hovered={hovered} />
+      {displayedBuckets.map((bucket, index) => (
+        <DrawBucket key={bucket.id} bucketInfo={bucket} color={categoryColors[index]} />
       ))}
     </>
   );

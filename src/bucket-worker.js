@@ -44,9 +44,21 @@ const layoutBuckets = async (data, results, innerWidth, innerHeight) => {
     console.log("laying out some buckets...");
     console.log({ bucketMap, results });
 
+    // janky logic, maybe replace
+    if(bucketMap?.buckets?.length > 0){
+      bm = bucketMap.buckets;
+    }
+    else{
+      bm = bucketMap
+    }
+
     const mappedContent = {};
-    Object.values(bucketMap).forEach((bucket) => {
+    Object.values(bm).forEach((bucket) => {
       const { name, children } = bucket;
+      console.log('children:' + children.length)
+      console.log('buck')
+      console.log(bucket)
+      if(children && children.length > 0){
       mappedContent[name] = [];
       children.forEach((childUrl) => {
         const match = results.find((result) => result.url === childUrl);
@@ -59,6 +71,7 @@ const layoutBuckets = async (data, results, innerWidth, innerHeight) => {
           });
         }
       });
+    }
     });
 
     mc = mappedContent;
@@ -165,10 +178,13 @@ async function fetchRecordsWithRetry() {
     return undefined;
   }
 
-  while (records.length === 1) {
+  while (records.length <2) {
     records = await fetchAllRecords();
     tries++;
   }
+
+  console.log('returning records: ' + records.length)
+  console.log(records)
 
   return records;
 }

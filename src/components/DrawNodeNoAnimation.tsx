@@ -11,15 +11,7 @@ import { PartialNodeInfo } from "@/lib/types";
 //   maxLastAccessed: number;
 // };
 
-export const DrawNodeNoAnimation = ({
-  nodeInfo,
-  colorMap,
-  hovered,
-}: {
-  nodeInfo: PartialNodeInfo;
-  colorMap?: any;
-  hovered: string;
-}) => {
+export const DrawNodeNoAnimation = ({ nodeInfo }: { nodeInfo: PartialNodeInfo; colorMap?: any }) => {
   const { x, y, id, radius, favIconUrl } = nodeInfo;
   const [imageUrl, setImageUrl] = useState(favIconUrl || defaultFavicon);
   //   const [animatedRadius, setAnimatedRadius] = useState(radius);
@@ -28,17 +20,13 @@ export const DrawNodeNoAnimation = ({
     (g: any) => {
       g.clear();
 
-      if (hovered === id) {
-        g.lineStyle(8, "white", 1);
-      } else {
-        g.lineStyle(4, "white", 1);
-      }
+      g.lineStyle(4, "white", 1);
 
       g.beginFill("#E9E9E9");
       g.drawCircle(x, y, radius);
       g.endFill();
     },
-    [x, y, hovered, radius],
+    [x, y, radius],
   );
 
   useEffect(() => {
