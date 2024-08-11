@@ -48,8 +48,3 @@ export enum ViewMode {
   Historical = "Historical",
   Bucket = "Bucket",
 }
-
-export enum NavigationMode {
-  Semantic = "Semantic",
-  TaskOriented = "TaskOriented",
-}

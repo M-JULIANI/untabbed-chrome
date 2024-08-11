@@ -6,13 +6,12 @@ const model = genAI.getGenerativeModel({
   model: "gemini-1.5-flash",
 });
 
-export const makeBuckets = async (records: any[]) => {
+export const makeBuckets = async (titleUrlPairs: { title: string; url: string }[]) => {
   // console.log("making buckets...");
-  if (records.length === 0) {
+  if (titleUrlPairs.length === 0) {
     return { response: "none" };
   }
-  const titles = records.map((x) => ({ title: x.title, url: x.url }));
-  // console.log("titles: ", titles);
+
   const prompt = `
     Take the following website title/url pairs, and generate anywhere between 3-10 bucket categories that best describe the data. 
     The level of granularity for each bucket category depends on the specificity and range of the dataset. 
@@ -20,7 +19,7 @@ export const makeBuckets = async (records: any[]) => {
     and a "children" field containing an array of the urls belonging to that bucket.
 
     ## Website title/url pairs:
-    ${JSON.stringify(titles, null, 2)}
+    ${JSON.stringify(titleUrlPairs, null, 2)}
     
     Use this JSON schema:
     {
@@ -43,6 +42,24 @@ export const makeBuckets = async (records: any[]) => {
   console.log("parsed: ");
   console.log({ parsed });
   return parsed;
+};
+
+export const makeBucketsWithRetry = async (titleUrlPairs: { title: string; url: string }[]) => {
+  let attempts = 0;
+  const maxAttempts = 3;
+
+  while (attempts < maxAttempts) {
+    try {
+      return await makeBuckets(titleUrlPairs);
+    } catch (error: unknown) {
+      attempts++;
+      const err = error as Error;
+      console.error(`Attempt ${attempts} failed: ${err.message}`);
+      if (attempts >= maxAttempts) {
+        throw new Error(`Failed to parse JSON after ${maxAttempts} attempts`);
+      }
+    }
+  }
 };
 
 function removeJsonTags(input: string): string {

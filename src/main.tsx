@@ -1,10 +1,11 @@
-import './index.css'
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import App from './App'
-import { Toaster } from './components/ui/toaster';
+import "./index.css";
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
+import { Toaster } from "./components/ui/toaster";
+import { HoveredProvider } from "./contexts/HoveredContext";
 
-const rootElement = document.getElementById('root');
+const rootElement = document.getElementById("root");
 
 if (!rootElement) {
   throw new Error("No root element found");
@@ -12,7 +13,9 @@ if (!rootElement) {
 
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
-    <App />
+    <HoveredProvider>
+      <App />
+    </HoveredProvider>
     <Toaster />
-  </React.StrictMode>
-)
+  </React.StrictMode>,
+);

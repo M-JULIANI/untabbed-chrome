@@ -42,9 +42,18 @@ button {
 }
 
 @keyframes loading {
-  0%{ transform: scale(1); opacity: 0.5; }
-  50% { transform: scale(1.15); opacity: 1.0;}
-  100% { transform: scale(1); opacity: 0.5; }
+  0% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
+  50% {
+    transform: scale(1.15);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0.5;
+  }
 }
 
 .loading span {
@@ -53,20 +62,41 @@ button {
 }
 
 /* Apply animation delays in a loop-like pattern */
-.loading span:nth-child(1) { animation-delay: 0.1s; }
-.loading span:nth-child(2) { animation-delay: 0.2s; }
-.loading span:nth-child(3) { animation-delay: 0.3s; }
-.loading span:nth-child(4) { animation-delay: 0.4s; }
-.loading span:nth-child(5) { animation-delay: 0.5s; }
-.loading span:nth-child(6) { animation-delay: 0.6s; }
-.loading span:nth-child(7) { animation-delay: 0.7s; }
-.loading span:nth-child(8) { animation-delay: 0.8s; }
-
+.loading span:nth-child(1) {
+  animation-delay: 0.1s;
+}
+.loading span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.loading span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+.loading span:nth-child(4) {
+  animation-delay: 0.4s;
+}
+.loading span:nth-child(5) {
+  animation-delay: 0.5s;
+}
+.loading span:nth-child(6) {
+  animation-delay: 0.6s;
+}
+.loading span:nth-child(7) {
+  animation-delay: 0.7s;
+}
+.loading span:nth-child(8) {
+  animation-delay: 0.8s;
+}
 
 @keyframes loading-basic {
-  0% { opacity: 0.2; }
-  50% { opacity: 1; }
-  100% { opacity: 0.2; }
+  0% {
+    opacity: 0.2;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.2;
+  }
 }
 
 .loading-basic span {
@@ -107,19 +137,36 @@ button {
 }
 
 @keyframes typing {
-  0% { width: 0; }
-  100% { width: calc(var(--characters) * 1.25ch); } /* Approximate width of each character */
+  0% {
+    width: 0;
+  }
+  100% {
+    width: calc(var(--characters) * 1.25ch);
+  } /* Approximate width of each character */
 }
 
 @keyframes blink {
-  0%, 100% { border-color: transparent; }
-  50% { border-color: #333; }
+  0%,
+  100% {
+    border-color: transparent;
+  }
+  50% {
+    border-color: #333;
+  }
 }
 
 @keyframes typing-blink {
-  0% { width: 0; border-right: 2px solid #333; }
-  87.5% { width: calc(var(--characters) * 0.6ch); }
-  100% { width: calc(var(--characters) * 0.6ch); border-right: 2px solid #333; }
+  0% {
+    width: 0;
+    border-right: 2px solid #333;
+  }
+  87.5% {
+    width: calc(var(--characters) * 0.6ch);
+  }
+  100% {
+    width: calc(var(--characters) * 0.6ch);
+    border-right: 2px solid #333;
+  }
 }
 
 .chatbox {
@@ -145,7 +192,25 @@ button {
   white-space: nowrap;
   overflow: hidden;
   width: 0; /* Start with 0 width to animate width */
-  animation: typing var(--duration) steps(var(--characters), end),
-             blink calc(var(--blink-duration) * 3) step-end 3 alternate;
+  animation:
+    typing var(--duration) steps(var(--characters), end),
+    blink calc(var(--blink-duration) * 3) step-end 3 alternate;
   animation-iteration-count: infinite;
+}
+
+.tabs-content {
+  max-width: 600px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+@media (max-width: 600px) {
+  .tabs-content {
+    max-width: 100%;
+  }
+}
+
+.todo-list {
+  width: 100%;
+  margin: 0 auto;
 }

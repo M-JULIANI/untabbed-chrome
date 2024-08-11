@@ -4,32 +4,26 @@ import { Graphics, Sprite, Stage, Text } from "@pixi/react";
 import { BucketInfo, PartialNodeInfo } from "@/lib/types";
 import * as PIXI from "pixi.js";
 import { DrawNodeNoAnimation } from "./DrawNodeNoAnimation";
+import { useHovered } from "@/contexts/HoveredContext";
 
-export const DrawBucket = ({
-  bucketInfo,
-  colorMap,
-  hovered,
-}: {
-  bucketInfo: BucketInfo;
-  colorMap?: any;
-  hovered: string;
-}) => {
-  const { x, y, id, title, radius } = bucketInfo;
+export const DrawBucket = ({ bucketInfo, color }: { bucketInfo: BucketInfo; color: string }) => {
+  // const { hovered } = useHovered();
+  const { x, y, id, title, radius, children } = bucketInfo;
   const draw = useCallback(
     (g: any) => {
       g.clear();
 
-      if (hovered === id) {
-        g.lineStyle(8, "white", 1);
-      } else {
-        g.lineStyle(4, "white", 1);
-      }
+      // if (hovered === id) {
+      //   g.lineStyle(10, color, 1);
+      // } else {
+      g.lineStyle(6, color, 1);
+      //  }
 
       g.beginFill("#E9E9E9");
       g.drawCircle(x, y, radius);
       g.endFill();
     },
-    [x, y, hovered, radius],
+    [x, y, radius],
   );
 
   // console.log({radius})
@@ -49,8 +43,8 @@ export const DrawBucket = ({
       g.endFill();
       const tabCount = `${bucketInfo.children.length} tabs`;
 
-      const maxFontSize = 40;
-      const baseFontSize = 24;
+      const maxFontSize = 20;
+      const baseFontSize = 20;
       const text = new PIXI.Text(`${title}\n${tabCount}`, {
         fontFamily: "Inter",
         fontSize: baseFontSize, // Increase the font size for better resolution
@@ -107,14 +101,14 @@ export const DrawBucket = ({
   return (
     <>
       <Graphics draw={draw} />
-      {bucketInfo.children.map((child: PartialNodeInfo, i) => (
-        <DrawNodeNoAnimation key={i} nodeInfo={child} hovered={hovered} />
+      {children.map((child: PartialNodeInfo, i) => (
+        <DrawNodeNoAnimation key={i} nodeInfo={child} />
       ))}
-      {hovered !== id && (
+      {/* {hovered !== id && (
         <>
           <Graphics draw={drawTranslucentFill} />
         </>
-      )}
+      )} */}
     </>
   );
 };

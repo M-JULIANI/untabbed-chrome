@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import defaultFavicon from "./favicon.svg";
 import { Graphics, Sprite, Stage } from "@pixi/react";
 import { PartialNodeInfo } from "@/lib/types";
+import { useHovered } from "../contexts/HoveredContext";
 
 // export type DrawNodeProps = {
 //   partialNodeInfo: PartialNodeInfo | BucketInfo;
@@ -11,15 +12,8 @@ import { PartialNodeInfo } from "@/lib/types";
 //   maxLastAccessed: number;
 // };
 
-export const DrawNode = ({
-  nodeInfo,
-  colorMap,
-  hovered,
-}: {
-  nodeInfo: PartialNodeInfo;
-  colorMap?: any;
-  hovered: string;
-}) => {
+export const DrawNode = ({ nodeInfo, colorMap }: { nodeInfo: PartialNodeInfo; colorMap?: any }) => {
+  const { hovered } = useHovered();
   const { x, y, id, radius, originalX, originalY, favIconUrl } = nodeInfo;
   const [imageUrl, setImageUrl] = useState(favIconUrl || defaultFavicon);
   const [animatedRadius, setAnimatedRadius] = useState(radius);
