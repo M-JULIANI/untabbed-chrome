@@ -67,3 +67,66 @@ function removeJsonTags(input: string): string {
   const cleanedString = input.replace(/```json\s*([\s\S]*?)\s*```/, "$1").trim();
   return cleanedString;
 }
+
+//this will be refined to include more context for better results, currently going off of url
+//and title pairs, instead of using info such as how long the tab has been open, etc.
+export const makeTodoList = async (titleUrlPairs: { title: string; url: string }[]) => {
+  if (titleUrlPairs.length === 0) {
+    return { response: "none" };
+  }
+
+  const prompt = `
+  From the provided website title/url pairs, select up to 10 to translate into actionable to-do items. Do not simply use the titles as to-do items. Instead, consider why a user might have these tabs open and create meaningful to-do actions based on that context. Remember, not every tab will translate into a to-do action.
+
+  Example: 
+  - If a recipe website is open, the to-do item might be "Cook the recipe".
+  - If a ticketing website is open, the to-do item might be "Book tickets".
+
+  Ensure that no to-do items are too similar. If multiple items refer to very similar websites or topics, cull them so that only one to-do item remains for that particular topic.
+
+  Return a JSON response with each to-do item as an object with these fields:
+  {
+    "text": string;
+    "description": string;
+    "url": string;
+    "priority": 1 | 2 | 3;
+    "done": boolean;
+    "notes": string;
+  }
+
+  ## Website title/url pairs:
+  ${JSON.stringify(titleUrlPairs, null, 2)}
+`;
+
+  const result = await model.generateContent(prompt);
+
+  console.log("result text or json");
+  const res = result.response.text();
+  console.log("res: ");
+  console.log({ res });
+
+  const cleaned = removeJsonTags(res);
+
+  const parsed = JSON.parse(cleaned);
+  console.log("parsed: ");
+  console.log({ parsed });
+  return parsed;
+};
+
+export const makeTodoListWithRetry = async (titleUrlPairs: { title: string; url: string }[]) => {
+  let attempts = 0;
+  const maxAttempts = 3;
+
+  while (attempts < maxAttempts) {
+    try {
+      return await makeTodoList(titleUrlPairs);
+    } catch (error: unknown) {
+      attempts++;
+      const err = error as Error;
+      console.error(`Attempt ${attempts} failed: ${err.message}`);
+      if (attempts >= maxAttempts) {
+        throw new Error(`Failed to parse JSON after ${maxAttempts} attempts`);
+      }
+    }
+  }
+};
