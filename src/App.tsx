@@ -1,44 +1,18 @@
 import "./globals.css";
 import "./App.css";
-import { useState, useEffect, useRef, MouseEventHandler, useMemo, useContext } from "react";
-import { Stage, Container, Text, Graphics, Sprite } from "@pixi/react";
+import { useState, useEffect, useRef, MouseEventHandler, useMemo, useCallback } from "react";
 import { UMAP } from "umap-js";
 import axios from "axios";
 import TurndownService from "turndown";
 import Prando from "prando";
-import { useCallback } from "react";
 import "@pixi/unsafe-eval";
-// import { SliderDemo } from './SliderDemo'
-import * as PIXI from "pixi.js";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "./components/ui/sheet";
-import { Button } from "./components/ui/button";
 import { Label } from "./components/ui/label";
-import { Input } from "./components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectLabel,
-  SelectTrigger,
-  SelectValue,
-} from "./components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from "./components/ui/select";
 import { Separator } from "./components/ui/separator";
 import { DrawNode } from "./components/DrawNode";
 import { cn } from "./lib/utils";
 import { useToast } from "@/components/ui/use-toast";
 import {
-  createRadialArrangements,
   isPointInsideRectangle,
   normalizePositions,
   remap,
@@ -64,7 +38,6 @@ import { Switch } from "./components/ui/switch";
 import { TodoItem, TodoList } from "./components/TodoList";
 import { CustomStage, useHovered } from "./contexts/HoveredContext";
 import { ViewModeMenu } from "./components/ViewModeMenu";
-import { _todos } from "./data/todo-stub";
 
 const turndownService = new TurndownService();
 const prng = new Prando(42);
@@ -130,13 +103,20 @@ function App() {
   const [calculated_radius, setCalculatedRadius] = useState(DEFAULT_RADIUS / (radiusDivisor[0] || 10));
   const [activeTabCount, setActiveTabCount] = useState(0);
   const [bucketNodes, setBucketNodes] = useState<BucketInfo[]>([]); // the nodes themselves, for drawing purposes
+  const [todoListReady, setTodoListReady] = useState(false);
+  const [delays, setDelays] = useState<number[]>([]);
   const [settings, setSettings] = useState({
     tabs: { deduplicate: true, autoclose: true, daysAutoclose: "5" },
     todos: { maxListLength: "10", resurfaceCount: "3", closeOnComplete: true, email: { enabled: false, address: "" } },
   });
+  const [todoList, setTodoList] = useState<TodoItem[]>([]);
   const { toast } = useToast();
 
   const { hovered, setHovered, selectedViewMode } = useHovered();
+
+  useEffect(() => {
+    setDelays(bucketNodes.map((_, i) => Math.random() * 100));
+  }, [bucketNodes.length]);
 
   // Example of importing a worker in your application
   const tfWorker = new Worker(new URL("tf-worker.js", import.meta.url), { type: "module" });
@@ -146,7 +126,6 @@ function App() {
     if (results) {
       setCalculatedRadius(DEFAULT_RADIUS / (radiusDivisor[0] || 10));
     }
-    //toast({ title: "calculatedRadius", description: `calc-${calculated_radius}, divisor-${radiusDivisor[0]}` });
   }, [results, radiusDivisor]);
 
   useEffect(() => {
@@ -216,37 +195,60 @@ function App() {
     };
 
     bucketWorker.onmessage = function (e) {
-      setLoading(true);
-      const { value } = e.data;
-      console.log("Result bucket-worker:", value);
-      console.log("BUCKETS LOADED");
-      // setBucketsLoaded(true);
-      console.log("value: ");
-      console.log(value);
-      const result = value;
+      const { value, type } = e.data;
+      console.log("bucketWorker.onmessage: " + type);
+      if (type === "buckets") {
+        console.log("Result bucket-worker:", value);
+        console.log("BUCKETS LOADED");
+        console.log("value: ");
+        console.log(value);
+        const result = value;
 
-      if (result == null) {
+        if (result == null) {
+          toast({
+            title: "Buckets failed.",
+            description: `failed to load bucket data`,
+          });
+          return;
+        }
+
+        setBucketNodes(result);
+        setLoading(false);
+        setStatus("");
+
         toast({
-          title: "Buckets failed.",
-          description: `failed to load bucket data`,
+          title: "Buckets loaded.",
+          description: `'Bucket' view mode now available!`,
         });
-        return;
+
+        console.log("posting message: ");
+        console.log(titleUrls);
+        bucketWorker.postMessage({
+          operation: "todoList",
+          data: titleUrls,
+        });
+      } else if (type === "todo") {
+        console.log("Result todolist:", value);
+        console.log("value: ");
+        console.log(value);
+        const result = value;
+
+        if (result == null) {
+          toast({
+            title: "Todo list failed.",
+            description: `failed to load todo list`,
+          });
+          return;
+        }
+        setLoading(false);
+        setTodoList(result);
+        setStatus("");
+        setTodoListReady(true);
+        toast({
+          title: "Today's to-do list is ready!",
+          description: `Open to-do tab to view it.`,
+        });
       }
-
-      setBucketNodes(result);
-      setLoading(false);
-      setStatus("");
-
-      toast({
-        title: "Buckets loaded.",
-        description: `'Bucket' view mode now available!`,
-      });
-
-      toast({
-        title: "Today's to-do list is ready!",
-        description: `Open to-do tab to view it.`,
-      });
-      // setStatus("Tabs loaded....");
     };
 
     return () => {
@@ -541,14 +543,17 @@ function App() {
     if (!selectedViewModeReady) setSelectedViewModeReady(true);
   }, [selectedViewMode]);
 
+  const handleHoverChange = useCallback(
+    debounce((hoveredId: string, tooltipData: any) => {
+      setHovered(hoveredId);
+      setTooltip(tooltipData);
+    }, 300),
+    [],
+  );
+
   const onMouseMove: MouseEventHandler = (e) => {
     if (loading || loadingDrawing) return;
     const point = { x: e.clientX, y: e.clientY };
-    const handleHoverChange = (hoveredId: string, tooltipData: any) => {
-      setHovered(hoveredId);
-      setTooltip(tooltipData);
-    }; // Adjust the debounce delay as needed
-
     // check if hovering polygon
     if (selectedViewMode !== ViewMode.Bucket && results) {
       const idx = checkHover(point, results);
@@ -715,7 +720,9 @@ function App() {
               <Tabs defaultValue="map" className="w-[400px]">
                 <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="map">Map</TabsTrigger>
-                  <TabsTrigger value="tasks">To-do</TabsTrigger>
+                  <TabsTrigger disabled={!todoListReady} value="tasks">
+                    To-do
+                  </TabsTrigger>
                   <TabsTrigger value="settings">Settings</TabsTrigger>
                 </TabsList>
                 <TabsContent value="map" className="flex justify-center w-full">
@@ -729,7 +736,7 @@ function App() {
                       onMouseDown={onMouseDown}
                     >
                       {selectedViewMode === ViewMode.Bucket && bucketNodes && bucketNodes.length > 0 && (
-                        <DrawBuckets buckets={bucketNodes} categoryColors={categoryColors} />
+                        <DrawBuckets buckets={bucketNodes} categoryColors={categoryColors} delays={delays} />
                       )}
                       {selectedViewMode !== ViewMode.Bucket &&
                         results &&
@@ -797,7 +804,7 @@ function App() {
                   </div>
                 </TabsContent>
                 <TabsContent value="tasks" className="tabs-content">
-                  <TodoList todos={_todos} />
+                  <TodoList todos={todoList} />
                 </TabsContent>
                 <TabsContent value="settings" className="tabs-content">
                   <Card>
@@ -927,7 +934,7 @@ const checkHover = (point: { x: number; y: number }, results: (PartialNodeInfo |
   results?.forEach((result: any) => {
     if (
       isPointInsideRectangle(point, {
-        position: { x: result.x + 50, y: result.y + 100 },
+        position: { x: result.x + 25, y: result.y + 50 },
         length: result?.radius || 1,
         height: result?.radius || 1,
       })
