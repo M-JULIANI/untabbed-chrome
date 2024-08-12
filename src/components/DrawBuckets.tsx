@@ -9,10 +9,12 @@ export const DrawBuckets = ({
   buckets,
   // colorMap,
   categoryColors,
+  delays,
 }: {
   buckets: BucketInfo[];
   // colorMap?: any;
   categoryColors: string[];
+  delays: number[];
 }) => {
   if (buckets == null || buckets?.length < 2) {
     return null;
@@ -23,7 +25,7 @@ export const DrawBuckets = ({
   return (
     <>
       {displayedBuckets.map((bucket, index) => (
-        <DrawBucket key={bucket.id} bucketInfo={bucket} color={categoryColors[index]} />
+        <DrawBucket key={bucket.id} bucketInfo={bucket} color={categoryColors[index]} delay={delays[index]} />
       ))}
     </>
   );
