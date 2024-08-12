@@ -6,96 +6,59 @@ import * as PIXI from "pixi.js";
 import { DrawNodeNoAnimation } from "./DrawNodeNoAnimation";
 import { useHovered } from "@/contexts/HoveredContext";
 
-export const DrawBucket = ({ bucketInfo, color }: { bucketInfo: BucketInfo; color: string }) => {
-  // const { hovered } = useHovered();
+export const DrawBucket = ({ bucketInfo, color, delay }: { bucketInfo: BucketInfo; color: string; delay: number }) => {
   const { x, y, id, title, radius, children } = bucketInfo;
+  const [currentRadius, setCurrentRadius] = useState(radius);
+  const [decreasing, setDecreasing] = useState(true);
+  const animationFrameId = useRef<number | null>(null);
+
+  useEffect(() => {
+    const startAnimation = () => {
+      const animate = () => {
+        setCurrentRadius((prevRadius) => {
+          if (decreasing) {
+            if (prevRadius > radius - radius * 0.15) {
+              return prevRadius - 0.01;
+            } else {
+              setDecreasing(false);
+              return prevRadius + 0.01;
+            }
+          } else {
+            if (prevRadius < radius) {
+              return prevRadius + 0.01;
+            } else {
+              setDecreasing(true);
+              return prevRadius - 0.01;
+            }
+          }
+        });
+
+        animationFrameId.current = requestAnimationFrame(animate);
+      };
+
+      animate();
+    };
+
+    const timeoutId = setTimeout(startAnimation, delay);
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (animationFrameId.current !== null) {
+        cancelAnimationFrame(animationFrameId.current);
+      }
+    };
+  }, [radius, decreasing, delay]);
+
   const draw = useCallback(
     (g: any) => {
       g.clear();
 
-      // if (hovered === id) {
-      //   g.lineStyle(10, color, 1);
-      // } else {
       g.lineStyle(6, color, 1);
-      //  }
-
       g.beginFill("#E9E9E9");
-      g.drawCircle(x, y, radius);
+      g.drawCircle(x, y, currentRadius);
       g.endFill();
     },
-    [x, y, radius],
-  );
-
-  // console.log({radius})
-
-  const safeguarded_rad = radius || 14;
-
-  const drawTranslucentFill = useCallback(
-    (g: any) => {
-      g.clear();
-
-      // Set the fill color with alpha for translucency
-      g.beginFill(0x000000, 0.5); // Black color with 50% opacity
-
-      // Draw a circle with the same dimensions as the sprite
-      g.drawCircle(x, y, safeguarded_rad);
-
-      g.endFill();
-      const tabCount = `${bucketInfo.children.length} tabs`;
-
-      const maxFontSize = 20;
-      const baseFontSize = 20;
-      const text = new PIXI.Text(`${title}\n${tabCount}`, {
-        fontFamily: "Inter",
-        fontSize: baseFontSize, // Increase the font size for better resolution
-        align: "center",
-        strokeThickness: 0.5, // Outline thickness
-        //@ts-ignore
-        resolution: 2, // Increase the resolution for better quality
-        fill: "black", // Set the fill color to white for better contrast
-        stroke: "black", // Set the stroke color to black for better outline
-      });
-      // Calculate the desired width based on the radius
-      const padding = 10; // Padding around the text
-      const desiredWidth = radius * 2;
-      const desiredTextWidth = desiredWidth - padding * 2;
-
-      // Calculate the dimensions of the text
-      const textWidth = text.width;
-      const textHeight = text.height;
-
-      // Scale the text to fit within the desired width
-      const scale = desiredTextWidth / textWidth;
-      const scaledFontSize = Math.min(baseFontSize * scale, maxFontSize);
-      text.style.fontSize = scaledFontSize;
-      // text.scale.set(scale, scale);
-
-      // Recalculate the dimensions of the scaled text
-      const scaledTextWidth = textWidth * scale;
-      const scaledTextHeight = textHeight * scale;
-
-      text.style.strokeThickness = 0.5;
-      // text.style.fontSize = scale;
-
-      const pillWidth = scaledTextWidth + padding * 2;
-      const pillHeight = scaledTextHeight + padding;
-      // Draw the pill-shaped background
-      g.beginFill(0xffffff); // Background color
-      g.drawRoundedRect(
-        x - pillWidth / 2,
-        y - pillHeight / 2,
-        pillWidth,
-        pillHeight,
-        pillHeight / 2, // Radius for rounded corners
-      );
-      g.endFill();
-
-      // Position the text on top of the pill background
-      text.x = x - scaledTextWidth / 2;
-      text.y = y - scaledTextHeight / 2;
-      g.addChild(text);
-    },
-    [x, y, safeguarded_rad],
+    [x, y, currentRadius, color],
   );
 
   return (
@@ -104,11 +67,6 @@ export const DrawBucket = ({ bucketInfo, color }: { bucketInfo: BucketInfo; colo
       {children.map((child: PartialNodeInfo, i) => (
         <DrawNodeNoAnimation key={i} nodeInfo={child} />
       ))}
-      {/* {hovered !== id && (
-        <>
-          <Graphics draw={drawTranslucentFill} />
-        </>
-      )} */}
     </>
   );
 };

@@ -1,4 +1,4 @@
-import { makeBucketsWithRetry } from "./lib/ai";
+import { makeBucketsWithRetry, makeTodoListWithRetry } from "./lib/ai";
 import { SIDE_GUTTER, INDEXDB_NAME, INDEXDB_STORE, DB_VERSION } from "./lib/constants";
 import { normalizePositionsOnlyWithWindow, remap, separateParticles } from "./lib/math";
 
@@ -52,6 +52,18 @@ const layoutBuckets = async (data, results, innerWidth, innerHeight) => {
       bm = bucketMap
     }
 
+
+    const rec_length = results.length * 1.0 ?? 10; //TEMPORARY
+    const rad = 10;
+    const particlesCopy = results.map((x, i) => {
+      const remapped = remap(i * 1.0, 0, rec_length, rad * 0.5, rad * 1.25);
+      const newRad = remapped ?? 12;
+      return { ...x, xOriginal: x.x, yOriginal: x.y, radius: newRad };
+    });
+
+    console.log('copied particles')
+    console.log(particlesCopy)
+
     const mappedContent = {};
     Object.values(bm).forEach((bucket) => {
       const { name, children } = bucket;
@@ -61,13 +73,17 @@ const layoutBuckets = async (data, results, innerWidth, innerHeight) => {
       if(children && children.length > 0){
       mappedContent[name] = [];
       children.forEach((childUrl) => {
-        const match = results.find((result) => result.url === childUrl);
+        const match = particlesCopy.find((result) => result.url === childUrl);
         if (match) {
           mappedContent[name].push({
             favIconUrl: match?.favIconUrl ?? "",
             title: match?.title ?? "Failed title",
             url: match?.url ?? "Failed url",
             id: match?.id ?? "Failed id",
+            lastAccessed: match?.lastAccessed ?? 0,
+            radius: match?.radius ?? 10,
+            originalX: match?.x ?? 0,
+            originalY: match?.y ?? 0,
           });
         }
       });
@@ -78,8 +94,8 @@ const layoutBuckets = async (data, results, innerWidth, innerHeight) => {
 
     const randomPos = [];
 
-    console.log(mappedContent);
-    console.log({ mappedContent });
+    // console.log(mappedContent);
+    // console.log({ mappedContent });
 
     // get the minimum and maximum size of the buckets
     const { minSize, maxSize } = Object.keys(mappedContent).reduce(
@@ -97,11 +113,11 @@ const layoutBuckets = async (data, results, innerWidth, innerHeight) => {
     );
 
     //set target radius range
-    const targetBucketRadiiRange = { min: 50, max: 100 };
+    const targetBucketRadiiRange = { min: 60, max: 100 };
 
     console.log('min: ', minSize, 'max: ', maxSize);
 
-    //create random positions/radiui for each bucket
+    //create random positions/radii for each bucket, revise logic
     Object.keys(mappedContent).forEach((bucketName) => {
       const children = mappedContent[bucketName];
       console.log({ children });
@@ -112,8 +128,8 @@ const layoutBuckets = async (data, results, innerWidth, innerHeight) => {
       randomPos.push({ x: randomX, y: randomY, radius: rad });
     });
 
-    console.log('randomPos')
-    console.log(randomPos)
+    // console.log('randomPos')
+    // console.log(randomPos)
 
     //normalize positions
     const rawPositions = randomPos.map((x) => [x.x, x.y]);
@@ -125,7 +141,6 @@ const layoutBuckets = async (data, results, innerWidth, innerHeight) => {
     const bucketNodes = Object.keys(mappedContent).map((bucketName, index) => {
       const bucketPosX = separatedParticles[index]?.x ?? 10;
       const bucketPosY = separatedParticles[index]?.y ?? 10;
-
       const childPositions = mappedContent[bucketName].map((x) => {
         const randX = Math.random();
         const randY = Math.random();
@@ -136,7 +151,7 @@ const layoutBuckets = async (data, results, innerWidth, innerHeight) => {
           y: bucketPosY + (randY * multi),
           originalX: bucketPosX + (randX * multi),
           originalY: bucketPosY + (randY * multi),
-          radius: 10
+          radius: x?.radius ?? 10,
         };
       });
 
@@ -202,16 +217,23 @@ self.onmessage = async (e) => {
       //3 relocate kids to parents
       //4 inject kids into parents
       const records = await fetchRecordsWithRetry();
-      console.log("conchaaa");
-      console.log(records);
-      console.log(data);
       const buckets = await layoutBuckets(data, records, windowInnerWidth, windowInnerHeight);
       self.postMessage({
-        type: "saveToLocalStorage",
+        type: "buckets",
         key: "untabbed-buckets",
         value: buckets,
       });
-      //  self.postMessage({ result: 'Buckets stored in local storage.' });
+    }
+    if (operation === "todoList") {
+      console.log('entering todo list')
+      const todos = await makeTodoListWithRetry(data);
+      console.log('todolist');
+      console.log(todos);
+      self.postMessage({
+        type: "todo",
+        key: "untabbed-todolist",
+        value: todos,
+      });
     }
   } catch (error) {
     console.log("error in worker: ");
