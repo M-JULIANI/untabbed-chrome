@@ -6,7 +6,7 @@
 - [x] investigate why i am getting different layouts on refresh, maybe try specifying a specific seed for a more deterministic behavior
 - [x] grab all open tabs
 
-- [ ] get service-worker or content pages working
+- [x] get service-worker or content pages working
 <!-- - [ ] get the 'pipeline' to initialize when the extension in active
 - [ ] get 'listener' to listen for tab activity (open/closed) while extension active -->
 
@@ -46,9 +46,6 @@ system:
     - [x] open untabbed side panel on the right?
   - [ ] display:
     - [ ] radius by visits/last accessed
-  - [ ] color by?
-    - [ ] category?
-    - [ ] random gradient?
 - [ ] settings
   - [ ] collapse all windows
   - [ ] display all windows
@@ -57,28 +54,15 @@ system:
   - task-oriented
 - [ ] views:
 
-  - semantic
+  - view modes
     - [x] semantics 2d
-    - [ ] concentric 1d
-    - [ ] chronological 1d
-    - [ ] bucket
-  - task oriented
-    - [ ] semantics 2d
-    - [ ] concentric 1d
-    - [ ] chronological 1d
+    - [x] chronological 1d
     - [ ] bucket
 
 - [ ] considerations
 
   - deduplication
 
-- [ ] ai
-
-  - [ ] auto-categorize url into a semantic 'category'
-  - [ ] auto-categorize url into an 'action'
-
-- action types:
-  - to read (articles, blogs)
-  - to buy (carts, amazon, other)
-  - to book (tickets: airline, doctor)
-  -
+- [x] ai
+  - [x] auto-categorize url into a semantic 'category'
+  - [x] auto-categorize url into an 'action'

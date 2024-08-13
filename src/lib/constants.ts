@@ -39,3 +39,7 @@ export const TAB_DELTA_ALLOWED = 10;
 export const DEFAULT_RADIUS = 250;
 
 export const MAX_BUCKETS = 10;
+
+export const bucket_prefix = "untabbed-buckets";
+export const todo_prefix = "untabbed-todo";
+export const tabs_prefix = "untabbed-tabs";

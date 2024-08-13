@@ -61,15 +61,9 @@ const layoutBuckets = async (data, results, innerWidth, innerHeight) => {
       return { ...x, xOriginal: x.x, yOriginal: x.y, radius: newRad };
     });
 
-    console.log('copied particles')
-    console.log(particlesCopy)
-
     const mappedContent = {};
     Object.values(bm).forEach((bucket) => {
       const { name, children } = bucket;
-      console.log('children:' + children.length)
-      console.log('buck')
-      console.log(bucket)
       if(children && children.length > 0){
       mappedContent[name] = [];
       children.forEach((childUrl) => {
@@ -127,9 +121,6 @@ const layoutBuckets = async (data, results, innerWidth, innerHeight) => {
       const rad = remap(size, minSize, maxSize, targetBucketRadiiRange.min, targetBucketRadiiRange.max);
       randomPos.push({ x: randomX, y: randomY, radius: rad });
     });
-
-    // console.log('randomPos')
-    // console.log(randomPos)
 
     //normalize positions
     const rawPositions = randomPos.map((x) => [x.x, x.y]);
@@ -199,8 +190,6 @@ async function fetchRecordsWithRetry() {
   }
 
   console.log('returning records: ' + records.length)
-  console.log(records)
-
   return records;
 }
 
@@ -227,8 +216,6 @@ self.onmessage = async (e) => {
     if (operation === "todoList") {
       console.log('entering todo list')
       const todos = await makeTodoListWithRetry(data);
-      console.log('todolist');
-      console.log(todos);
       self.postMessage({
         type: "todo",
         key: "untabbed-todolist",

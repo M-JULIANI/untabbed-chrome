@@ -28,6 +28,9 @@ import {
   DB_VERSION,
   MAX_BUCKETS,
   generateGradientColors,
+  bucket_prefix,
+  todo_prefix,
+  tabs_prefix,
 } from "./lib/constants";
 import { DrawBuckets } from "./components/DrawBuckets";
 import debounce from "lodash/debounce";
@@ -39,7 +42,7 @@ import { TodoItem, TodoList } from "./components/TodoList";
 import { CustomStage, useHovered } from "./contexts/HoveredContext";
 import { ViewModeMenu } from "./components/ViewModeMenu";
 
-const turndownService = new TurndownService();
+// const turndownService = new TurndownService();
 const prng = new Prando(42);
 
 export function fetchAllRecords(): Promise<any> {
@@ -74,26 +77,40 @@ export function fetchAllRecords(): Promise<any> {
     };
   });
 }
+const getCurrentHour = () => {
+  const now = new Date();
+  return now.getHours();
+};
+const storeDataWithTimestamp = (dataName: string, data: any) => {
+  const currentHour = getCurrentHour();
+  const key = `${dataName}-${currentHour}`;
+  localStorage.setItem(key, JSON.stringify(data));
+};
+const getStoredData = (key: string) => {
+  const item = localStorage.getItem(key);
+  if (item) {
+    return JSON.parse(item);
+  }
+  return null;
+};
+
 function App() {
   const [results, setResults] = useState<PartialNodeInfo[]>();
-  const [minLastAccessed, setMinLastAccessed] = useState(0);
-  const [maxLastAccessed, setMaxLastAccessed] = useState(100);
   const [dimensions, setDimensions] = useState({
     height: window.innerHeight,
     width: window.innerWidth,
   });
   const [dataLoaded, setDataLoaded] = useState(false);
-  const [bucketsLoaded, setBucketsLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadingDrawing, setLoadingDrawing] = useState(false);
 
   const [selectedViewModeReady, setSelectedViewModeReady] = useState(true);
   const [localRecords, setLocalRecords] = useState<NodeInfo[]>([]);
   const [status, setStatus] = useState("");
-  const [neighborCount, setNeighborCount] = useState([5]);
+  const neighborCount = [5];
   const [neighborCountReady, setNeighborCountReady] = useState(true);
-  const [minDistance, setMinDistance] = useState([0.002]);
-  const [radiusDivisor, setRadiusDivisor] = useState([15]);
+  const minDistance = [0.002];
+  const radiusDivisor = [15];
   const [minDistanceReady, setMinDistanceReady] = useState(true);
   const [radiusDivisorReady, setRadiusDivisorReady] = useState(true);
   const [resizeFlag, setResizeFlag] = useState(false);
@@ -104,7 +121,6 @@ function App() {
   const [activeTabCount, setActiveTabCount] = useState(0);
   const [bucketNodes, setBucketNodes] = useState<BucketInfo[]>([]); // the nodes themselves, for drawing purposes
   const [todoListReady, setTodoListReady] = useState(false);
-  const [delays, setDelays] = useState<number[]>([]);
   const [settings, setSettings] = useState({
     tabs: { deduplicate: true, autoclose: true, daysAutoclose: "5" },
     todos: { maxListLength: "10", resurfaceCount: "3", closeOnComplete: true, email: { enabled: false, address: "" } },
@@ -113,14 +129,11 @@ function App() {
   const { toast } = useToast();
 
   const { hovered, setHovered, selectedViewMode } = useHovered();
+  const tfWorker = useMemo(() => new Worker(new URL("tf-worker.js", import.meta.url), { type: "module" }), []);
+  const bucketWorker = useMemo(() => new Worker(new URL("bucket-worker.js", import.meta.url), { type: "module" }), []);
+  let titleUrls: any;
 
-  useEffect(() => {
-    setDelays(bucketNodes.map((_, i) => Math.random() * 100));
-  }, [bucketNodes.length]);
-
-  // Example of importing a worker in your application
-  const tfWorker = new Worker(new URL("tf-worker.js", import.meta.url), { type: "module" });
-  const bucketWorker = new Worker(new URL("bucket-worker.js", import.meta.url), { type: "module" });
+  const delays = useMemo(() => bucketNodes.map((_, i) => Math.random() * 100), [bucketNodes.length]);
 
   useEffect(() => {
     if (results) {
@@ -128,47 +141,40 @@ function App() {
     }
   }, [results, radiusDivisor]);
 
-  useEffect(() => {
-    // can probably be run evertyime there's an event, because
-    // the processing step is skipped in tfworker when it has already run
-    let titleUrls: any;
-    async function fetchDataAndPostMessage() {
-      const tabs = await loadTabs();
-      if (tabs.length > 0) {
-        setActiveTabCount(tabs.length);
-      }
-      //FOR LOCAL
-      // const tabs = stubTabs;
-      console.log("here...");
-      console.log({ tabs });
-      if (tabs.length < 1) {
-        console.log("No tabs loaded.");
-      } else {
-        const simplifiedTabs = tabs.map((tab, index) => {
-          return {
-            id: tab.id,
-            title: tab.title,
-            url: tab.url,
-            favIconUrl: tab.favIconUrl,
-            lastAccessed: tab.lastAccessed,
-            text: "",
-          };
-        });
-
-        const titleUrlPairs = simplifiedTabs.map((tab) => {
-          return { title: tab.title, url: tab.url };
-        });
-        titleUrls = titleUrlPairs;
-
-        console.log("Sending tabs w/ text:", simplifiedTabs);
-        tfWorker.postMessage({
-          operation: "processTabs",
-          data: simplifiedTabs,
-        });
-      }
+  const fetchDataAndPostMessage = async () => {
+    const tabs = await loadTabs();
+    if (tabs.length > 0) {
+      setActiveTabCount(tabs.length);
     }
 
-    console.log("loading tabs from APP");
+    if (tabs.length < 1) {
+      console.log("No tabs loaded.");
+    } else {
+      const simplifiedTabs = tabs.map((tab, index) => {
+        return {
+          id: tab.id,
+          title: tab.title,
+          url: tab.url,
+          favIconUrl: tab.favIconUrl,
+          lastAccessed: tab.lastAccessed,
+          text: "",
+        };
+      });
+
+      const titleUrlPairs = simplifiedTabs.map((tab) => {
+        return { title: tab.title, url: tab.url };
+      });
+      titleUrls = titleUrlPairs;
+
+      console.log("Sending tabs w/ text:", simplifiedTabs);
+      tfWorker.postMessage({
+        operation: "processTabs",
+        data: simplifiedTabs,
+      });
+    }
+  };
+
+  const initializeAll = useCallback(() => {
     setLoading(true);
     setStatus("Loading tabs...");
     fetchDataAndPostMessage();
@@ -187,7 +193,7 @@ function App() {
 
       toast({
         title: "Buckets.",
-        description: `Message posted`,
+        description: `Working on buckets...`,
       });
 
       setDataLoaded(true);
@@ -199,9 +205,6 @@ function App() {
       console.log("bucketWorker.onmessage: " + type);
       if (type === "buckets") {
         console.log("Result bucket-worker:", value);
-        console.log("BUCKETS LOADED");
-        console.log("value: ");
-        console.log(value);
         const result = value;
 
         if (result == null) {
@@ -213,6 +216,7 @@ function App() {
         }
 
         setBucketNodes(result);
+        storeDataWithTimestamp(bucket_prefix, result);
         setLoading(false);
         setStatus("");
 
@@ -221,16 +225,11 @@ function App() {
           description: `'Bucket' view mode now available!`,
         });
 
-        console.log("posting message: ");
-        console.log(titleUrls);
         bucketWorker.postMessage({
           operation: "todoList",
           data: titleUrls,
         });
       } else if (type === "todo") {
-        console.log("Result todolist:", value);
-        console.log("value: ");
-        console.log(value);
         const result = value;
 
         if (result == null) {
@@ -242,6 +241,7 @@ function App() {
         }
         setLoading(false);
         setTodoList(result);
+        storeDataWithTimestamp(todo_prefix, result);
         setStatus("");
         setTodoListReady(true);
         toast({
@@ -250,8 +250,48 @@ function App() {
         });
       }
     };
+  }, [
+    tfWorker,
+    bucketWorker,
+    titleUrls,
+    fetchDataAndPostMessage,
+    storeDataWithTimestamp,
+    bucket_prefix,
+    todo_prefix,
+    toast,
+  ]);
+
+  useEffect(() => {
+    const currentHour = getCurrentHour();
+    const bucketsKey = `${bucket_prefix}-${currentHour}`;
+    const todoKey = `${todo_prefix}-${currentHour}`;
+    const storedBuckets = getStoredData(bucketsKey);
+    const storedTodo = getStoredData(todoKey);
+
+    if (storedBuckets && storedTodo) {
+      setBucketNodes(storedBuckets);
+      setTodoList(storedTodo);
+      setDataLoaded(true);
+      setTodoListReady(true);
+      setLoading(false);
+      setStatus("");
+    } else {
+      Object.keys(localStorage).forEach((storageKey) => {
+        if (storageKey.startsWith(todo_prefix)) {
+          localStorage.removeItem(storageKey);
+        }
+        if (storageKey.startsWith(bucket_prefix)) {
+          localStorage.removeItem(storageKey);
+        }
+      });
+
+      initializeAll();
+    }
+
+    const bucketsInterval = setInterval(initializeAll, 60 * 60 * 1000); // Reinitialize tabs + buckets once per hour
 
     return () => {
+      clearInterval(bucketsInterval);
       tfWorker.terminate(); // Clean up
       bucketWorker.terminate();
     };
@@ -259,7 +299,6 @@ function App() {
 
   useEffect(() => {
     const handleWorkerMessage = async (message: any) => {
-      console.log({ message });
       if (results) {
         if (message.type === "TAB_CREATED") {
           toast({
@@ -307,15 +346,14 @@ function App() {
     const runAsync = async () => {
       const records = await fetchAllRecords();
       console.log("REFETCHED RECORDS DUE TO MISSING ENTRIES");
-      console.log({ records });
       if (records) {
         setLocalRecords(records);
         //@ts-ignore
-        const minLastAccesses = records.map((x) => x.lastAccessed).reduce((a: any, b: any) => Math.min(a, b));
-        if (minLastAccesses) setMinLastAccessed(minLastAccesses);
+        //  const minLastAccesses = records.map((x) => x.lastAccessed).reduce((a: any, b: any) => Math.min(a, b));
+        //if (minLastAccesses) setMinLastAccessed(minLastAccesses);
         //@ts-ignore
-        const maxLastAccesses = records?.map((x) => x.lastAccessed).reduce((a: any, b: any) => Math.max(a, b));
-        if (maxLastAccesses) setMaxLastAccessed(maxLastAccesses);
+        // const maxLastAccesses = records?.map((x) => x.lastAccessed).reduce((a: any, b: any) => Math.max(a, b));
+        // if (maxLastAccesses) setMaxLastAccessed(maxLastAccesses);
         const rec_length = records.length * 1.0 ?? 10; //TEMPORARY
         const rad = calculated_radius ?? 10;
         const particlesCopy = records.map((x: NodeInfo, i: number) => {
@@ -334,10 +372,8 @@ function App() {
       }
     };
     console.log("possibly rerunning fetch...");
-    console.log({ dataLoaded, results, activeTabCount });
     // if (dataLoaded && results && results.length > 0 && Math.abs(results.length - activeTabCount) > TAB_DELTA_ALLOWED) {
     const delta = Math.abs((results?.length || 0) - activeTabCount) ?? 0;
-    console.log({ delta, results, activeTabCount });
     //only runs when results is not adequate
     if (
       dataLoaded &&
@@ -357,15 +393,14 @@ function App() {
     const runAsync = async () => {
       const records = await fetchAllRecords();
       console.log("FETCHED RECORDS INITIAL");
-      console.log({ records });
       if (records) {
         setLocalRecords(records);
         //@ts-ignore
-        const minLastAccesses = records.map((x) => x.lastAccessed).reduce((a: any, b: any) => Math.min(a, b));
-        if (minLastAccesses) setMinLastAccessed(minLastAccesses);
+        //const minLastAccesses = records.map((x) => x.lastAccessed).reduce((a: any, b: any) => Math.min(a, b));
+        // if (minLastAccesses) setMinLastAccessed(minLastAccesses);
         //@ts-ignore
-        const maxLastAccesses = records?.map((x) => x.lastAccessed).reduce((a: any, b: any) => Math.max(a, b));
-        if (maxLastAccesses) setMaxLastAccessed(maxLastAccesses);
+        // const maxLastAccesses = records?.map((x) => x.lastAccessed).reduce((a: any, b: any) => Math.max(a, b));
+        //  if (maxLastAccesses) setMaxLastAccessed(maxLastAccesses);
         const rec_length = records.length * 1.0; //TEMPORARY
         const rad = calculated_radius ?? 10;
         const particlesCopy = records.map((x: NodeInfo, i: number) => {
@@ -393,37 +428,6 @@ function App() {
       });
     }
   }, [dataLoaded]);
-
-  useEffect(() => {
-    if (bucketsLoaded) {
-      setLoading(true);
-
-      const bucketDataString = localStorage.getItem("untabbed-buckets");
-      const bucketData = bucketDataString ? JSON.parse(bucketDataString) : null;
-
-      if (bucketData == null) {
-        toast({
-          title: "Buckets failed.",
-          description: `failed to load bucket data from local storage`,
-        });
-        return;
-      }
-
-      setBucketNodes(bucketData);
-      setLoading(false);
-      setStatus("");
-
-      toast({
-        title: "Buckets loaded.",
-        description: `buncha buckets`,
-      });
-    }
-  }, [bucketsLoaded]);
-
-  useEffect(() => {
-    console.log("and the bucket nodes are set to:");
-    console.log(bucketNodes);
-  }, [bucketNodes]);
 
   useEffect(() => {
     const runAsync = async () => {
@@ -514,31 +518,6 @@ function App() {
     };
   }, []);
 
-  async function getWebsiteTextFromUrl(url: string) {
-    // let headers = {
-    //   "Accept": 'text/html',
-    //   "Content-Type": 'text/html',
-    // }
-
-    const updated_url = `http://localhost:5000/api?url=${url}`;
-    let response = undefined;
-
-    try {
-      response = await axios.get(updated_url);
-      // console.log('response:')
-      // console.log({ response })
-      const text = turndownService.turndown(response.data);
-      console.log("xformed", { text });
-      return text;
-    } catch (error) {
-      console.log(error);
-      console.warn(`website ${url} not accessible`);
-      return undefined;
-    }
-  }
-  // console.log({ results });
-  // console.log("loading: " + loading);
-
   useEffect(() => {
     if (!selectedViewModeReady) setSelectedViewModeReady(true);
   }, [selectedViewMode]);
@@ -616,7 +595,6 @@ function App() {
     if (hovered) {
       const match = results?.find((r: any) => r.id === hovered);
       if (match) {
-        console.log({ match });
         const matchNumber = Number(match.id);
         chrome.tabs.get(matchNumber, (tab) => {
           if (chrome.runtime.lastError) {
@@ -985,13 +963,11 @@ async function visualizeEmbeddings(records: any, nNeighbors: number, minDist: nu
   try {
     //@ts-ignore
     const embeddings = records.map((x) => x.embedding);
-    console.log({ records, embeddings });
     const filteredIndeces = embeddings
       .map((x: any, i: number) => (x !== undefined ? i : -1))
       .filter((i: any) => i !== undefined);
 
     const nonNullEmbeddings = filteredIndeces.map((x: any, i: number) => embeddings[i]);
-    console.log({ nonNullEmbeddings });
     //const nonNullEmbeddings = filteredIndeces.map((x: any, i: number) => embeddings[i][0]); // Assuming extra array wrappin
     const umap = new UMAP({
       nNeighbors: records.length >= 5 ? nNeighbors : 0,
@@ -1011,7 +987,6 @@ async function visualizeEmbeddings(records: any, nNeighbors: number, minDist: nu
       x[1] = (x[1] ?? 0) || 10;
       return x;
     });
-    console.log({ positions, updatedPositions });
 
     return { positions: updatedPositions, ids: filteredIndeces };
   } catch (error) {
@@ -1028,10 +1003,7 @@ async function calculatePositionsFromEmbeddings(
   viewMode: ViewMode,
 ) {
   console.log("about to visualize embeddings");
-  console.log({ records });
   const rawPositions = await tryVisualizeEmbeddings(records, nCount, minDist, viewMode);
-  console.log("raw positions");
-  console.log({ rawPositions });
   if (rawPositions !== undefined) {
     const partialNodeInfo: PartialNodeInfo[] = records.map((nodeInfo) => ({
       x: nodeInfo.x,
@@ -1049,9 +1021,6 @@ async function calculatePositionsFromEmbeddings(
       normalized = separateParticlesVertically(normalized, SIDE_GUTTER);
     }
     normalized = separateParticles(normalized.map((x: any) => ({ ...x, x: x.x, y: x.y }))) as PartialNodeInfo[];
-
-    console.log("normalized particle positions");
-    console.log({ normalized });
     return normalized;
   }
   return undefined;
