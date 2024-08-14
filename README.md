@@ -2,7 +2,7 @@
 
 Adding basic build instructions in case it isn't obvious.
 
-## Build instructions
+### Build instructions
 
 1. Go to `src/lib/ai.ts`, replace the api_key with your own (the key shown is a restricted key and won't work for you).
 2. From the root `npm i`, `npm run build`. This will produce a **dist** folder which we will use in the next steps.
